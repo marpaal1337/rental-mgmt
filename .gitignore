@@ -31,5 +31,9 @@ htmlcov/
 # Alembic
 alembic/versions/*.pyc
 
+# Data (SQLite database and generated files)
+data/db/*.db
+data/db/*.db-*
+
 # Logs
 *.log

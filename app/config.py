@@ -1,0 +1,8 @@
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./data/db/rental.db")
+SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production")
