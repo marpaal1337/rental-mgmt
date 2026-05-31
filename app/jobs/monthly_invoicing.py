@@ -10,7 +10,8 @@ from app.services.invoice_service import InvoiceGenerationError, InvoiceService
 
 
 def generate_monthly_invoices(
-    period: Optional[str] = None, session: Optional[Session] = None,
+    period: Optional[str] = None,
+    session: Optional[Session] = None,
 ) -> list[Invoice]:
     if period is None:
         today = date.today()

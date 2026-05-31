@@ -31,9 +31,7 @@ class TestLeases:
 
 
 class TestInvoices:
-    def test_generate_without_data_returns_empty(
-        self, client: TestClient
-    ):
+    def test_generate_without_data_returns_empty(self, client: TestClient):
         resp = client.post(
             "/invoices/generate",
             json={"period": "2024-06"},
@@ -51,9 +49,7 @@ class TestExpenses:
         cats = resp.json()["categories"]
         assert "community" in cats
 
-    def test_register_no_property_returns_error(
-        self, client: TestClient
-    ):
+    def test_register_no_property_returns_error(self, client: TestClient):
         resp = client.post(
             "/expenses",
             json={
@@ -68,9 +64,7 @@ class TestExpenses:
 
 
 class TestReconciliation:
-    def test_unmatched_returns_empty_list(
-        self, client: TestClient
-    ):
+    def test_unmatched_returns_empty_list(self, client: TestClient):
         resp = client.get("/reconciliation/unmatched", headers=HEADERS)
         assert resp.status_code == 200
         assert resp.json() == []

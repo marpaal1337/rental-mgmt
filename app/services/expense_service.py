@@ -31,7 +31,8 @@ class ExpenseService:
         invoice_number: Optional[str] = None,
         notes: Optional[str] = None,
     ) -> Expense:
-        if session.get(Property, property_id) is None:
+        prop = session.get(Property, property_id)
+        if prop is None or prop.deleted_at is not None:
             raise ExpenseError(f"Property {property_id} not found")
 
         if category not in EXPENSE_CATEGORIES:
@@ -42,8 +43,10 @@ class ExpenseService:
         if amount <= Decimal("0"):
             raise ExpenseError("Amount must be positive")
 
-        if lease_id is not None and session.get(Lease, lease_id) is None:
-            raise ExpenseError(f"Lease {lease_id} not found")
+        if lease_id is not None:
+            lea = session.get(Lease, lease_id)
+            if lea is None or lea.deleted_at is not None:
+                raise ExpenseError(f"Lease {lease_id} not found")
 
         expense = Expense(
             property_id=property_id,
@@ -66,7 +69,8 @@ class ExpenseService:
         property_id: int,
         year: Optional[int] = None,
     ) -> list[Expense]:
-        if session.get(Property, property_id) is None:
+        prop = session.get(Property, property_id)
+        if prop is None or prop.deleted_at is not None:
             raise ExpenseError(f"Property {property_id} not found")
 
         query = select(Expense).where(
@@ -87,20 +91,17 @@ class ExpenseService:
         property_id: int,
         year: int,
     ) -> dict:
-        if session.get(Property, property_id) is None:
+        prop = session.get(Property, property_id)
+        if prop is None or prop.deleted_at is not None:
             raise ExpenseError(f"Property {property_id} not found")
 
         expenses = ExpenseService.list_by_property(session, property_id, year)
 
         total_expenses = sum((e.amount for e in expenses), Decimal("0"))
-        deductible_expenses = sum(
-            (e.amount for e in expenses if e.deductible), Decimal("0")
-        )
+        deductible_expenses = sum((e.amount for e in expenses if e.deductible), Decimal("0"))
         by_category: dict[str, Decimal] = {}
         for e in expenses:
-            by_category[e.category] = (
-                by_category.get(e.category, Decimal("0")) + e.amount
-            )
+            by_category[e.category] = by_category.get(e.category, Decimal("0")) + e.amount
 
         units = session.exec(
             select(Unit).where(

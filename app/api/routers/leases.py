@@ -20,9 +20,7 @@ router = APIRouter(
 
 @router.get("")
 def list_leases(session: Session = Depends(get_session)):
-    return session.exec(
-        select(Lease).where(Lease.deleted_at.is_(None))
-    ).all()
+    return session.exec(select(Lease).where(Lease.deleted_at.is_(None))).all()
 
 
 @router.get("/{lease_id}")

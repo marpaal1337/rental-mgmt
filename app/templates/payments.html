@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Pagos recientes</h2>
+<table class="table table-striped mt-3">
+  <thead><tr><th>ID</th><th>Factura</th><th>Importe</th><th>Fecha</th><th>Método</th></tr></thead>
+  <tbody>
+    {% for p in payments %}
+    <tr>
+      <td>{{ p.id }}</td>
+      <td>#{{ p.invoice_id }}</td>
+      <td>{{ "%.2f €"|format(p.amount) }}</td>
+      <td>{{ p.payment_date }}</td>
+      <td>{{ p.method }}</td>
+    </tr>
+    {% endfor %}
+    {% if not payments %}
+    <tr><td colspan="5" class="text-muted">No hay pagos este mes</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+{% endblock %}

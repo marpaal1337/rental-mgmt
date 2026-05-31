@@ -17,9 +17,7 @@ class TestGetActiveRent:
         session.add(rc)
         session.commit()
 
-        rent = LeaseService.get_active_rent(
-            session, sample_lease.id, date(2024, 6, 1)
-        )
+        rent = LeaseService.get_active_rent(session, sample_lease.id, date(2024, 6, 1))
         assert rent == Decimal("850.00")
 
     def test_multiple_rent_conditions(self, session: Session, sample_lease):
@@ -37,32 +35,22 @@ class TestGetActiveRent:
         session.add(rc2)
         session.commit()
 
-        rent_before = LeaseService.get_active_rent(
-            session, sample_lease.id, date(2024, 6, 1)
-        )
+        rent_before = LeaseService.get_active_rent(session, sample_lease.id, date(2024, 6, 1))
         assert rent_before == Decimal("850.00")
 
-        rent_after = LeaseService.get_active_rent(
-            session, sample_lease.id, date(2025, 6, 1)
-        )
+        rent_after = LeaseService.get_active_rent(session, sample_lease.id, date(2025, 6, 1))
         assert rent_after == Decimal("875.00")
 
-        rent_exact = LeaseService.get_active_rent(
-            session, sample_lease.id, date(2025, 1, 1)
-        )
+        rent_exact = LeaseService.get_active_rent(session, sample_lease.id, date(2025, 1, 1))
         assert rent_exact == Decimal("875.00")
 
     def test_no_rent_condition_raises(self, session: Session, sample_lease):
         from pytest import raises
 
         with raises(NoActiveRentError):
-            LeaseService.get_active_rent(
-                session, sample_lease.id, date(2024, 6, 1)
-            )
+            LeaseService.get_active_rent(session, sample_lease.id, date(2024, 6, 1))
 
-    def test_date_before_any_condition_raises(
-        self, session: Session, sample_lease
-    ):
+    def test_date_before_any_condition_raises(self, session: Session, sample_lease):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 6, 1),
@@ -74,9 +62,7 @@ class TestGetActiveRent:
         from pytest import raises
 
         with raises(NoActiveRentError):
-            LeaseService.get_active_rent(
-                session, sample_lease.id, date(2024, 1, 1)
-            )
+            LeaseService.get_active_rent(session, sample_lease.id, date(2024, 1, 1))
 
     def test_unknown_lease_raises(self, session: Session):
         from pytest import raises

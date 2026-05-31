@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Contratos activos</h2>
+<table class="table table-striped mt-3">
+  <thead><tr><th>ID</th><th>Inquilino</th><th>Propietario</th><th>Unidad</th><th>Inicio</th><th>Fin</th></tr></thead>
+  <tbody>
+    {% for l in leases %}
+    <tr>
+      <td>{{ l.id }}</td>
+      <td>{{ l.tenant.name }}</td>
+      <td>{{ l.owner.name }}</td>
+      <td>{{ l.unit.name if l.unit else '—' }}</td>
+      <td>{{ l.start_date }}</td>
+      <td>{{ l.end_date or 'Indefinido' }}</td>
+    </tr>
+    {% endfor %}
+    {% if not leases %}
+    <tr><td colspan="6" class="text-muted">No hay contratos activos</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+{% endblock %}

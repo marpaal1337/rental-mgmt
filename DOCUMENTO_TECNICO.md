@@ -30,11 +30,13 @@ rental-mgmt/
             ├── expenses.py
             ├── invoices.py
             ├── leases.py
+            ├── pages.py
             ├── payments.py
             └── reconciliation.py
         ├── deps.py
         └── schemas.py
     ├── jobs/
+        ├── daily_backup.py
         ├── daily_overdue.py
         ├── monthly_invoicing.py
         └── scheduler.py
@@ -51,6 +53,7 @@ rental-mgmt/
         ├── tenant.py
         └── unit.py
     ├── services/
+        ├── backup_service.py
         ├── bank_adapter.py
         ├── expense_service.py
         ├── index_update_service.py
@@ -59,11 +62,24 @@ rental-mgmt/
         ├── payment_service.py
         ├── pdf_service.py
         └── reconciliation_service.py
+    ├── templates/
+        ├── base.html
+        ├── dashboard.html
+        ├── expenses.html
+        ├── invoices.html
+        ├── leases.html
+        └── payments.html
     ├── config.py
     ├── database.py
     ├── main.py
     └── seed.py
 ├── data/
+    ├── backups/
+        ├── rental_20260531_115909.db
+        ├── rental_20260531_120051.db
+        ├── rental_20260531_120056.db
+        ├── rental_20260531_120345.db
+        └── rental_20260531_120353.db
     ├── db/
         └── rental.db
     ├── invoices/
@@ -74,15 +90,20 @@ rental-mgmt/
 ├── tests/
     ├── conftest.py
     ├── test_api.py
+    ├── test_backup_service.py
+    ├── test_bank_adapter.py
+    ├── test_coverage_gaps.py
     ├── test_expense_service.py
     ├── test_index_update_service.py
     ├── test_invoice_service.py
     ├── test_jobs.py
     ├── test_lease_service.py
+    ├── test_pages.py
     ├── test_payment_service.py
     ├── test_pdf_service.py
     ├── test_reconciliation_service.py
     └── test_sanity.py
+├── .coverage
 ├── .env
 ├── .env.example
 ├── .gitignore
@@ -350,6 +371,12 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 4. Servicios
 
+### BackupService
+
+- **_db_path**() → `Path`
+- **run_backup**() → `Path`
+- **clean_old_backups**(`retention_days`) → `int`
+
 ### BankRow
 
 - **__init__**(`entry_date`, `concept`, `amount`, `value_date`, `iban_origin`, `reference`, `raw`) → `None`
@@ -407,7 +434,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 63 tests**
+**Total: 77 tests**
 
 ### Fixtures
 
@@ -456,6 +483,53 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 |---|---|
 | `test_health` |  |
 | `test_root` |  |
+
+### test_backup_service.py — TestBackupService
+
+| Test | Descripción |
+|---|---|
+| `test_backup_creates_file` |  |
+| `test_clean_old_backups` |  |
+
+### test_bank_adapter.py — TestGenericBankAdapter
+
+| Test | Descripción |
+|---|---|
+| `test_parse_basic_csv` |  |
+| `test_parse_with_skip_rows` |  |
+| `test_empty_line_skipped` |  |
+
+### test_bank_adapter.py — TestINGBankAdapter
+
+| Test | Descripción |
+|---|---|
+| `test_parse_ing_format` |  |
+
+### test_coverage_gaps.py — TestIndexUpdateServiceCoverage
+
+| Test | Descripción |
+|---|---|
+| `test_lease_not_found` |  |
+
+### test_coverage_gaps.py — TestPaymentServiceCoverage
+
+| Test | Descripción |
+|---|---|
+| `test_payment_status_stays_draft_when_no_payments` |  |
+
+### test_coverage_gaps.py — TestPDFServiceCoverage
+
+| Test | Descripción |
+|---|---|
+| `test_invoice_no_lines_raises` |  |
+| `test_owner_with_address_in_pdf` |  |
+
+### test_coverage_gaps.py — TestReconciliationCoverage
+
+| Test | Descripción |
+|---|---|
+| `test_skip_already_confirmed_payment` |  |
+| `test_concept_match_contributes_score` |  |
 
 ### test_expense_service.py — TestRegister
 
@@ -529,6 +603,13 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_date_before_any_condition_raises` |  |
 | `test_unknown_lease_raises` |  |
 | `test_default_date` |  |
+
+### test_pages.py — TestPages
+
+| Test | Descripción |
+|---|---|
+| `test_dashboard` |  |
+| `test_leases_page` |  |
 
 ### test_payment_service.py — TestRegisterPayment
 

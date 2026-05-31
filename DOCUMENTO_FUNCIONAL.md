@@ -7,7 +7,7 @@ Permite gestionar contratos de alquiler, calcular rentas, aplicar revisiones IPC
 y (en fases futuras) facturar con IVA/IRPF correcto, generar PDFs, registrar pagos,
 conciliar movimientos bancarios, y automatizar tareas mensuales.
 
-> **Estado actual**: Fase 2 completada — modelo de datos + servicios de renta.
+> **Estado actual**: Plan completo — todas las fases implementadas (0-10).
 
 ---
 
@@ -348,7 +348,7 @@ pytest -v
 
 ---
 
-## 6. Lo que viene (próximas fases)
+## 6. Fases completadas
 
 - ✅ **Fase 3**: Facturación mensual con IVA/IRPF correcto (Invoice, InvoiceLine, InvoiceService)
 - ✅ **Fase 4**: PDF de factura (PDFService.render_invoice)
@@ -357,4 +357,8 @@ pytest -v
 - ✅ **Fase 7**: Conciliación bancaria (BankMovement, Reconciliation, ReconciliationService)
 - ✅ **Fase 8**: API REST completa (20+ endpoints, auth API key) con endpoints CRUD
 - ✅ **Fase 9**: Automatización (APScheduler, facturación mensual automática, detección de impagos, EventLog)
-- **Fase 10**: Backups, auditoría, UI opcional
+- ✅ **Fase 10**: Calidad:
+  - **Backups automáticos**: copia diaria de `rental.db` con retención de 7 días, ejecutada vía APScheduler a las 5:00
+  - **Soft-delete audit**: verificación y parche de `deleted_at.is_(None)` en todos los servicios (16 ubicaciones corregidas)
+  - **UI básica HTMX + Jinja2**: panel web con Bootstrap para Dashboard, Contratos, Facturas, Pagos y Gastos
+  - **Cobertura de tests**: 99 % en `services/`, 79 tests totales

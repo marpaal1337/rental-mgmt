@@ -26,6 +26,7 @@ target_metadata = SQLModel.metadata
 
 def get_database_url():
     from dotenv import load_dotenv
+
     load_dotenv()
     return os.getenv("DATABASE_URL", "sqlite:///./data/db/rental.db")
 
@@ -71,9 +72,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

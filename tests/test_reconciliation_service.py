@@ -26,9 +26,7 @@ class _TestAdapter(GenericBankAdapter):
 
 
 class TestImportCSV:
-    def test_import_creates_movements(
-        self, session: Session
-    ):
+    def test_import_creates_movements(self, session: Session):
         rows = [
             BankRow(
                 entry_date=date(2024, 7, 1),
@@ -43,18 +41,14 @@ class TestImportCSV:
         ]
         adapter = _TestAdapter(rows)
 
-        movements = ReconciliationService.import_csv(
-            session, "/fake/path.csv", adapter
-        )
+        movements = ReconciliationService.import_csv(session, "/fake/path.csv", adapter)
 
         assert len(movements) == 2
         assert movements[0].amount == Decimal("850.00")
         assert movements[0].status == "unmatched"
         assert movements[1].concept == "Pago comunidad"
 
-    def test_import_with_iban(
-        self, session: Session
-    ):
+    def test_import_with_iban(self, session: Session):
         rows = [
             BankRow(
                 entry_date=date(2024, 7, 1),
@@ -66,9 +60,7 @@ class TestImportCSV:
         ]
         adapter = _TestAdapter(rows)
 
-        movements = ReconciliationService.import_csv(
-            session, "/fake/path.csv", adapter
-        )
+        movements = ReconciliationService.import_csv(session, "/fake/path.csv", adapter)
 
         assert movements[0].iban_origin == "ES9121000418450200051332"
         assert movements[0].reference == "REF001"
@@ -129,12 +121,8 @@ class TestProposeMatches:
         session.commit()
         return payment
 
-    def test_exact_match_found(
-        self, session: Session, sample_lease
-    ):
-        payment = self._create_payment(
-            session, sample_lease, Decimal("850.00"), date(2024, 7, 1)
-        )
+    def test_exact_match_found(self, session: Session, sample_lease):
+        payment = self._create_payment(session, sample_lease, Decimal("850.00"), date(2024, 7, 1))
 
         movement = BankMovement(
             entry_date=date(2024, 7, 1),
@@ -145,21 +133,15 @@ class TestProposeMatches:
         session.add(movement)
         session.commit()
 
-        recs = ReconciliationService.propose_matches(
-            session, movement.id
-        )
+        recs = ReconciliationService.propose_matches(session, movement.id)
 
         assert len(recs) >= 1
         best = max(recs, key=lambda r: r.score)
         assert best.payment_id == payment.id
         assert best.score > Decimal("0.5")
 
-    def test_no_match_different_amount(
-        self, session: Session, sample_lease
-    ):
-        self._create_payment(
-            session, sample_lease, Decimal("850.00"), date(2024, 7, 1)
-        )
+    def test_no_match_different_amount(self, session: Session, sample_lease):
+        self._create_payment(session, sample_lease, Decimal("850.00"), date(2024, 7, 1))
 
         movement = BankMovement(
             entry_date=date(2024, 8, 1),
@@ -169,23 +151,17 @@ class TestProposeMatches:
         session.add(movement)
         session.commit()
 
-        recs = ReconciliationService.propose_matches(
-            session, movement.id
-        )
+        recs = ReconciliationService.propose_matches(session, movement.id)
 
         assert len(recs) == 0
 
-    def test_movement_not_found_raises(
-        self, session: Session
-    ):
+    def test_movement_not_found_raises(self, session: Session):
         from pytest import raises
 
         with raises(ReconciliationError, match="BankMovement 999 not found"):
             ReconciliationService.propose_matches(session, 999)
 
-    def test_movement_already_confirmed_raises(
-        self, session: Session
-    ):
+    def test_movement_already_confirmed_raises(self, session: Session):
         movement = BankMovement(
             entry_date=date(2024, 7, 1),
             amount=Decimal("100.00"),
@@ -197,18 +173,12 @@ class TestProposeMatches:
 
         from pytest import raises
 
-        with raises(
-            ReconciliationError, match="already confirmed"
-        ):
-            ReconciliationService.propose_matches(
-                session, movement.id
-            )
+        with raises(ReconciliationError, match="already confirmed"):
+            ReconciliationService.propose_matches(session, movement.id)
 
 
 class TestConfirmMatch:
-    def test_confirm_updates_status(
-        self, session: Session, sample_lease
-    ):
+    def test_confirm_updates_status(self, session: Session, sample_lease):
         payment = Payment(
             invoice_id=0,
             amount=Decimal("100.00"),
@@ -250,9 +220,7 @@ class TestConfirmMatch:
         session.add(rec)
         session.commit()
 
-        confirmed = ReconciliationService.confirm_match(
-            session, rec.id
-        )
+        confirmed = ReconciliationService.confirm_match(session, rec.id)
 
         assert confirmed.confirmed_at is not None
         moved = session.get(BankMovement, movement.id)
@@ -261,16 +229,12 @@ class TestConfirmMatch:
     def test_not_found_raises(self, session: Session):
         from pytest import raises
 
-        with raises(
-            ReconciliationError, match="Reconciliation 999 not found"
-        ):
+        with raises(ReconciliationError, match="Reconciliation 999 not found"):
             ReconciliationService.confirm_match(session, 999)
 
 
 class TestListUnmatched:
-    def test_list_unmatched(
-        self, session: Session
-    ):
+    def test_list_unmatched(self, session: Session):
         m1 = BankMovement(
             entry_date=date(2024, 7, 1),
             amount=Decimal("100.00"),

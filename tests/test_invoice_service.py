@@ -67,9 +67,7 @@ class TestGenerateMonthly:
         assert inv.total_irpf_withholding == Decimal("285.00")
         assert inv.total == Decimal("1530.00")
 
-    def test_idempotent_does_not_duplicate(
-        self, session: Session, sample_lease
-    ):
+    def test_idempotent_does_not_duplicate(self, session: Session, sample_lease):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 1, 1),
@@ -95,9 +93,7 @@ class TestGenerateMonthly:
         all_invoices = session.exec(select(Invoice)).all()
         assert len(all_invoices) == 1
 
-    def test_leases_without_tax_profile_raises(
-        self, session: Session, sample_lease
-    ):
+    def test_leases_without_tax_profile_raises(self, session: Session, sample_lease):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 1, 1),

@@ -59,14 +59,14 @@ def get_models(path: Path) -> list[dict]:
 
                         if "back_populates" in dump:
                             rel_match = re.search(
-                                r"value='(\w+)'", dump[dump.index("back_populates"):]
+                                r"value='(\w+)'", dump[dump.index("back_populates") :]
                             )
                             target = rel_match.group(1) if rel_match else "?"
                             is_list = "List" in (
                                 ast.unparse(item.annotation) if item.annotation else ""
                             )
                             has_uselist = "uselist" in dump
-                            is_one_to_one = has_uselist and "False" in dump[dump.index("uselist"):]
+                            is_one_to_one = has_uselist and "False" in dump[dump.index("uselist") :]
                             rel_type = "1:1" if (not is_list or is_one_to_one) else "1:N"
                             relationships.append(
                                 {
@@ -77,14 +77,10 @@ def get_models(path: Path) -> list[dict]:
                             )
                             continue
 
-                        col_type = (
-                            ast.unparse(item.annotation) if item.annotation else "?"
-                        )
+                        col_type = ast.unparse(item.annotation) if item.annotation else "?"
                         is_optional = "Optional" in col_type
                         nullable = "nullable=True" in dump if item.value else False
-                        fk_match = re.search(
-                            r"foreign_key.*?value='([^']+)'", dump
-                        )
+                        fk_match = re.search(r"foreign_key.*?value='([^']+)'", dump)
                         has_fk = fk_match.group(1) if fk_match else None
 
                         fields.append(
@@ -124,9 +120,7 @@ def get_services(path: Path) -> list[dict]:
                     if isinstance(item, ast.FunctionDef):
                         args = [a.arg for a in item.args.args if a.arg != "self"]
                         doc = ast.get_docstring(item)
-                        returns = (
-                            ast.unparse(item.returns) if item.returns else None
-                        )
+                        returns = ast.unparse(item.returns) if item.returns else None
                         methods.append(
                             {
                                 "name": item.name,
@@ -153,9 +147,7 @@ def get_tests(path: Path) -> list[dict]:
             if isinstance(node, ast.ClassDef):
                 methods = []
                 for item in node.body:
-                    if isinstance(item, ast.FunctionDef) and item.name.startswith(
-                        "test_"
-                    ):
+                    if isinstance(item, ast.FunctionDef) and item.name.startswith("test_"):
                         doc = ast.get_docstring(item)
                         methods.append({"name": item.name, "doc": doc})
                 if methods:
@@ -179,9 +171,7 @@ def get_migrations(path: Path) -> list[dict]:
         rev_match = re.search(r'revision:\s*str\s*=\s*["\'](.+?)["\']', source)
         rev = rev_match.group(1) if rev_match else "?"
         down_rev = ""
-        dr_match = re.search(
-            r"down_revision.*?=.*?['\"](.*?)['\"]", source
-        )
+        dr_match = re.search(r"down_revision.*?=.*?['\"](.*?)['\"]", source)
         if dr_match:
             down_rev = dr_match.group(1)
 
@@ -236,10 +226,7 @@ def generate() -> str:
 
     a("# Documento Técnico — rental-mgmt")
     a("")
-    a(
-        "> Generado automáticamente por `scripts/generate_docs.py`. "
-        "No editar manualmente."
-    )
+    a("> Generado automáticamente por `scripts/generate_docs.py`. No editar manualmente.")
     a("")
 
     # ── Stack ──
@@ -299,15 +286,9 @@ def generate() -> str:
             a(f"### {svc['name']}")
             a("")
             for method in svc["methods"]:
-                args_str = ", ".join(
-                    [f"`{a}`" for a in method["args"]]
-                )
-                returns_str = (
-                    f" → `{method['returns']}`" if method["returns"] else ""
-                )
-                a(
-                    f"- **{method['name']}**({args_str}){returns_str}"
-                )
+                args_str = ", ".join([f"`{a}`" for a in method["args"]])
+                returns_str = f" → `{method['returns']}`" if method["returns"] else ""
+                a(f"- **{method['name']}**({args_str}){returns_str}")
                 if method["doc"]:
                     doc_short = method["doc"].strip().split("\n")[0]
                     a(f"  - {doc_short}")

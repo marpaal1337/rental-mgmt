@@ -22,7 +22,10 @@ class InvoiceService:
         target_date = date(year, month, 1)
 
         active_leases = session.exec(
-            select(Lease).where(Lease.is_active)
+            select(Lease).where(
+                Lease.is_active,
+                Lease.deleted_at.is_(None),
+            )
         ).all()
 
         invoices: List[Invoice] = []
@@ -31,6 +34,7 @@ class InvoiceService:
                 select(Invoice).where(
                     Invoice.lease_id == lease.id,
                     Invoice.period == period,
+                    Invoice.deleted_at.is_(None),
                 )
             ).first()
             if existing is not None:
@@ -39,25 +43,26 @@ class InvoiceService:
             rent = LeaseService.get_active_rent(session, lease.id, target_date)
 
             tax_profile = session.exec(
-                select(TaxProfile).where(TaxProfile.lease_id == lease.id)
+                select(TaxProfile).where(
+                    TaxProfile.lease_id == lease.id,
+                    TaxProfile.deleted_at.is_(None),
+                )
             ).first()
             if tax_profile is None:
-                raise InvoiceGenerationError(
-                    f"Lease {lease.id} has no TaxProfile"
-                )
+                raise InvoiceGenerationError(f"Lease {lease.id} has no TaxProfile")
 
             vat_amount = Decimal("0")
             irpf_withholding = Decimal("0")
 
             if not tax_profile.vat_exempt:
-                vat_amount = (
-                    rent * tax_profile.vat_rate / Decimal("100")
-                ).quantize(Decimal("0.01"))
+                vat_amount = (rent * tax_profile.vat_rate / Decimal("100")).quantize(
+                    Decimal("0.01")
+                )
 
             if tax_profile.withholding_applies:
-                irpf_withholding = (
-                    rent * tax_profile.irpf_rate / Decimal("100")
-                ).quantize(Decimal("0.01"))
+                irpf_withholding = (rent * tax_profile.irpf_rate / Decimal("100")).quantize(
+                    Decimal("0.01")
+                )
 
             total = rent + vat_amount - irpf_withholding
 

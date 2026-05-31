@@ -16,14 +16,21 @@ from app.models.unit import Unit
 
 def _create_lease(session: Session, monthly_rent: Decimal = Decimal("850.00")) -> Lease:
     owner = Owner(
-        name="Owner", document_type="DNI", document_number="11111111A",
-        email="o@t.com", phone="+34",
+        name="Owner",
+        document_type="DNI",
+        document_number="11111111A",
+        email="o@t.com",
+        phone="+34",
     )
     session.add(owner)
     session.flush()
     prop = Property(
-        name="Prop", address="Addr", city="City", province="Prov",
-        zip_code="28001", owner_id=owner.id,
+        name="Prop",
+        address="Addr",
+        city="City",
+        province="Prov",
+        zip_code="28001",
+        owner_id=owner.id,
     )
     session.add(prop)
     session.flush()
@@ -31,24 +38,35 @@ def _create_lease(session: Session, monthly_rent: Decimal = Decimal("850.00")) -
     session.add(unit)
     session.flush()
     tenant = Tenant(
-        name="Tenant", document_type="DNI", document_number="22222222B",
-        email="t@t.com", phone="+34",
+        name="Tenant",
+        document_type="DNI",
+        document_number="22222222B",
+        email="t@t.com",
+        phone="+34",
     )
     session.add(tenant)
     session.flush()
     lease = Lease(
-        unit_id=unit.id, tenant_id=tenant.id, owner_id=owner.id,
-        start_date=date(2024, 1, 1), is_active=True,
+        unit_id=unit.id,
+        tenant_id=tenant.id,
+        owner_id=owner.id,
+        start_date=date(2024, 1, 1),
+        is_active=True,
     )
     session.add(lease)
     session.flush()
     rc = RentCondition(
-        lease_id=lease.id, start_date=date(2024, 1, 1), monthly_rent=monthly_rent,
+        lease_id=lease.id,
+        start_date=date(2024, 1, 1),
+        monthly_rent=monthly_rent,
     )
     session.add(rc)
     tax = TaxProfile(
-        lease_id=lease.id, vat_rate=Decimal("0"), irpf_rate=Decimal("0"),
-        vat_exempt=True, withholding_applies=False,
+        lease_id=lease.id,
+        vat_rate=Decimal("0"),
+        irpf_rate=Decimal("0"),
+        vat_exempt=True,
+        withholding_applies=False,
     )
     session.add(tax)
     session.flush()
@@ -70,27 +88,36 @@ class TestGenerateMonthlyInvoices:
         assert "Generated" in logs[0].description
 
     def test_logs_error_on_failure(self, session: Session):
-        owner = Owner(name="O", document_type="DNI", document_number="1",
-                      email="o@t.com", phone="+34")
+        owner = Owner(
+            name="O", document_type="DNI", document_number="1", email="o@t.com", phone="+34"
+        )
         session.add(owner)
         session.flush()
-        prop = Property(name="P", address="A", city="C", province="P",
-                        zip_code="28001", owner_id=owner.id)
+        prop = Property(
+            name="P", address="A", city="C", province="P", zip_code="28001", owner_id=owner.id
+        )
         session.add(prop)
         session.flush()
         unit = Unit(property_id=prop.id, name="U", unit_type="vivienda")
         session.add(unit)
         session.flush()
-        tenant = Tenant(name="T", document_type="DNI", document_number="2",
-                        email="t@t.com", phone="+34")
+        tenant = Tenant(
+            name="T", document_type="DNI", document_number="2", email="t@t.com", phone="+34"
+        )
         session.add(tenant)
         session.flush()
-        lease = Lease(unit_id=unit.id, tenant_id=tenant.id, owner_id=owner.id,
-                      start_date=date(2024, 1, 1), is_active=True)
+        lease = Lease(
+            unit_id=unit.id,
+            tenant_id=tenant.id,
+            owner_id=owner.id,
+            start_date=date(2024, 1, 1),
+            is_active=True,
+        )
         session.add(lease)
         session.flush()
-        rc = RentCondition(lease_id=lease.id, start_date=date(2024, 1, 1),
-                           monthly_rent=Decimal("500"))
+        rc = RentCondition(
+            lease_id=lease.id, start_date=date(2024, 1, 1), monthly_rent=Decimal("500")
+        )
         session.add(rc)
         session.flush()
 
@@ -108,9 +135,7 @@ class TestGenerateMonthlyInvoices:
 
 
 class TestDetectOverdue:
-    def test_detects_old_unpaid_invoices(
-        self, session: Session
-    ):
+    def test_detects_old_unpaid_invoices(self, session: Session):
         lease = _create_lease(session)
         old = date.today() - timedelta(days=45)
         inv = Invoice(

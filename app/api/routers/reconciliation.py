@@ -63,6 +63,5 @@ def list_proposed(session: Session = Depends(get_session)):
 @router.get("/movements")
 def list_movements(session: Session = Depends(get_session)):
     from sqlmodel import select
-    return session.exec(
-        select(BankMovement).where(BankMovement.deleted_at.is_(None))
-    ).all()
+
+    return session.exec(select(BankMovement).where(BankMovement.deleted_at.is_(None))).all()

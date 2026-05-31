@@ -9,9 +9,7 @@ from app.services.lease_service import LeaseService
 
 
 class TestApplyIndex:
-    def test_apply_index_creates_new_rent_and_record(
-        self, session: Session, sample_lease
-    ):
+    def test_apply_index_creates_new_rent_and_record(self, session: Session, sample_lease):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 1, 1),
@@ -38,14 +36,10 @@ class TestApplyIndex:
         assert index_update.index_name == "IPC"
         assert index_update.application_date == date(2025, 1, 1)
 
-        active_rent = LeaseService.get_active_rent(
-            session, sample_lease.id, date(2025, 6, 1)
-        )
+        active_rent = LeaseService.get_active_rent(session, sample_lease.id, date(2025, 6, 1))
         assert active_rent == Decimal("1020.00")
 
-    def test_apply_index_multiple_times(
-        self, session: Session, sample_lease
-    ):
+    def test_apply_index_multiple_times(self, session: Session, sample_lease):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 1, 1),
@@ -68,16 +62,12 @@ class TestApplyIndex:
             application_date=date(2026, 1, 1),
         )
 
-        active_rent = LeaseService.get_active_rent(
-            session, sample_lease.id, date(2026, 6, 1)
-        )
+        active_rent = LeaseService.get_active_rent(session, sample_lease.id, date(2026, 6, 1))
         expected = Decimal("1020.00") * Decimal("1.015")
         expected = expected.quantize(Decimal("0.01"))
         assert active_rent == expected
 
-    def test_apply_index_zero_rate(
-        self, session: Session, sample_lease
-    ):
+    def test_apply_index_zero_rate(self, session: Session, sample_lease):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 1, 1),

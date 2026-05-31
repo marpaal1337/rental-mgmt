@@ -82,14 +82,12 @@ class GenericBankAdapter(BaseBankAdapter):
                 amount = Decimal(raw_amount)
                 iban = (
                     csv_row[self.col_iban].strip()
-                    if self.col_iban is not None
-                    and len(csv_row) > self.col_iban
+                    if self.col_iban is not None and len(csv_row) > self.col_iban
                     else None
                 )
                 ref = (
                     csv_row[self.col_reference].strip()
-                    if self.col_reference is not None
-                    and len(csv_row) > self.col_reference
+                    if self.col_reference is not None and len(csv_row) > self.col_reference
                     else None
                 )
                 rows.append(

@@ -10,9 +10,7 @@ from app.services.pdf_service import PDFService
 
 
 class TestRenderInvoice:
-    def test_pdf_generated_for_vivienda(
-        self, session: Session, sample_lease, tmp_path: Path
-    ):
+    def test_pdf_generated_for_vivienda(self, session: Session, sample_lease, tmp_path: Path):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 1, 1),
@@ -62,9 +60,7 @@ class TestRenderInvoice:
         assert "06" in str(path)
         assert path.stat().st_size > 1000
 
-    def test_pdf_generated_for_local(
-        self, session: Session, sample_lease, tmp_path: Path
-    ):
+    def test_pdf_generated_for_local(self, session: Session, sample_lease, tmp_path: Path):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 1, 1),

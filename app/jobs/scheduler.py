@@ -2,6 +2,7 @@ import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from app.jobs.daily_backup import daily_backup
 from app.jobs.daily_overdue import detect_overdue_invoices
 from app.jobs.monthly_invoicing import generate_monthly_invoices
 
@@ -32,6 +33,16 @@ def setup_scheduler() -> None:
         minute=0,
         id="daily_overdue",
         name="Detect overdue invoices",
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        daily_backup,
+        trigger="cron",
+        hour=5,
+        minute=0,
+        id="daily_backup",
+        name="Daily database backup",
         replace_existing=True,
     )
 

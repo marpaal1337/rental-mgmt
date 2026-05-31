@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Facturas</h2>
+<table class="table table-striped mt-3">
+  <thead><tr><th>ID</th><th>Periodo</th><th>Contrato</th><th>Total</th><th>Estado</th><th>Emisión</th></tr></thead>
+  <tbody>
+    {% for inv in invoices %}
+    <tr>
+      <td>{{ inv.id }}</td>
+      <td>{{ inv.period }}</td>
+      <td>#{{ inv.lease_id }}</td>
+      <td>{{ "%.2f €"|format(inv.total) }}</td>
+      <td>
+        <span class="badge bg-{{ 'success' if inv.status == 'paid' else 'warning' if inv.status == 'partial' else 'secondary' }}">
+          {{ inv.status }}
+        </span>
+      </td>
+      <td>{{ inv.issue_date }}</td>
+    </tr>
+    {% endfor %}
+    {% if not invoices %}
+    <tr><td colspan="6" class="text-muted">No hay facturas este mes</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+{% endblock %}

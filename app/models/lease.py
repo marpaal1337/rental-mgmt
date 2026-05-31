@@ -29,9 +29,7 @@ class Lease(AuditMixin, table=True):
     unit: "Unit" = Relationship(back_populates="leases")
     tenant: "Tenant" = Relationship(back_populates="leases")
     owner: "Owner" = Relationship(back_populates="leases")
-    rent_conditions: List["RentCondition"] = Relationship(
-        back_populates="lease"
-    )
+    rent_conditions: List["RentCondition"] = Relationship(back_populates="lease")
     tax_profile: Optional["TaxProfile"] = Relationship(
         back_populates="lease",
         sa_relationship_kwargs={"uselist": False},
@@ -40,12 +38,8 @@ class Lease(AuditMixin, table=True):
         back_populates="lease",
         sa_relationship_kwargs={"uselist": False},
     )
-    index_updates: List["IndexUpdate"] = Relationship(
-        back_populates="lease"
-    )
-    invoices: List["Invoice"] = Relationship(
-        back_populates="lease"
-    )
+    index_updates: List["IndexUpdate"] = Relationship(back_populates="lease")
+    invoices: List["Invoice"] = Relationship(back_populates="lease")
     expenses: List["Expense"] = Relationship(back_populates="lease")
 
 
@@ -66,9 +60,7 @@ class RentCondition(AuditMixin, table=True):
 class TaxProfile(AuditMixin, table=True):
     __tablename__ = "tax_profile"
 
-    lease_id: int = Field(
-        foreign_key="lease.id", nullable=False, unique=True
-    )
+    lease_id: int = Field(foreign_key="lease.id", nullable=False, unique=True)
     vat_rate: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(4, 2), nullable=False),
@@ -86,9 +78,7 @@ class TaxProfile(AuditMixin, table=True):
 class Deposit(AuditMixin, table=True):
     __tablename__ = "deposit"
 
-    lease_id: int = Field(
-        foreign_key="lease.id", nullable=False, unique=True
-    )
+    lease_id: int = Field(foreign_key="lease.id", nullable=False, unique=True)
     amount: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(10, 2), nullable=False),

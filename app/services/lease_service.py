@@ -20,13 +20,14 @@ class LeaseService:
             target_date = date.today()
 
         lease = session.get(Lease, lease_id)
-        if lease is None:
+        if lease is None or lease.deleted_at is not None:
             raise NoActiveRentError(f"Lease {lease_id} not found")
 
         statement = (
             select(RentCondition)
             .where(RentCondition.lease_id == lease_id)
             .where(RentCondition.start_date <= target_date)
+            .where(RentCondition.deleted_at.is_(None))
             .order_by(RentCondition.start_date.desc())
             .limit(1)
         )

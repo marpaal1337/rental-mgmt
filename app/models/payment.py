@@ -25,6 +25,4 @@ class Payment(AuditMixin, table=True):
     notes: Optional[str] = Field(default=None, max_length=1000)
 
     invoice: "Invoice" = Relationship(back_populates="payments")
-    reconciliations: List["Reconciliation"] = Relationship(
-        back_populates="payment"
-    )
+    reconciliations: List["Reconciliation"] = Relationship(back_populates="payment")

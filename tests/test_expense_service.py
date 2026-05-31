@@ -10,9 +10,7 @@ from app.services.expense_service import ExpenseError, ExpenseService
 
 
 class TestRegister:
-    def test_register_valid_expense(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_register_valid_expense(self, session: Session, sample_lease: Lease):
         prop = session.get(Property, sample_lease.unit.property_id)
         expense = ExpenseService.register(
             session,
@@ -28,9 +26,7 @@ class TestRegister:
         assert expense.expense_date == date(2024, 6, 1)
         assert expense.deductible is True
 
-    def test_register_with_lease(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_register_with_lease(self, session: Session, sample_lease: Lease):
         prop = session.get(Property, sample_lease.unit.property_id)
         expense = ExpenseService.register(
             session,
@@ -63,9 +59,7 @@ class TestRegister:
                 date(2024, 1, 1),
             )
 
-    def test_invalid_category_raises(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_invalid_category_raises(self, session: Session, sample_lease: Lease):
         from pytest import raises
 
         prop = session.get(Property, sample_lease.unit.property_id)
@@ -78,9 +72,7 @@ class TestRegister:
                 date(2024, 1, 1),
             )
 
-    def test_zero_amount_raises(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_zero_amount_raises(self, session: Session, sample_lease: Lease):
         from pytest import raises
 
         prop = session.get(Property, sample_lease.unit.property_id)
@@ -93,9 +85,7 @@ class TestRegister:
                 date(2024, 1, 1),
             )
 
-    def test_lease_not_found_raises(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_lease_not_found_raises(self, session: Session, sample_lease: Lease):
         from pytest import raises
 
         prop = session.get(Property, sample_lease.unit.property_id)
@@ -111,34 +101,20 @@ class TestRegister:
 
 
 class TestListByProperty:
-    def test_list_by_property(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_list_by_property(self, session: Session, sample_lease: Lease):
         prop = session.get(Property, sample_lease.unit.property_id)
-        ExpenseService.register(
-            session, prop.id, "community", Decimal("85"), date(2024, 6, 1)
-        )
-        ExpenseService.register(
-            session, prop.id, "insurance", Decimal("30"), date(2024, 6, 1)
-        )
+        ExpenseService.register(session, prop.id, "community", Decimal("85"), date(2024, 6, 1))
+        ExpenseService.register(session, prop.id, "insurance", Decimal("30"), date(2024, 6, 1))
 
         expenses = ExpenseService.list_by_property(session, prop.id)
         assert len(expenses) == 2
 
-    def test_list_by_property_and_year(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_list_by_property_and_year(self, session: Session, sample_lease: Lease):
         prop = session.get(Property, sample_lease.unit.property_id)
-        ExpenseService.register(
-            session, prop.id, "community", Decimal("85"), date(2024, 6, 1)
-        )
-        ExpenseService.register(
-            session, prop.id, "community", Decimal("90"), date(2025, 1, 1)
-        )
+        ExpenseService.register(session, prop.id, "community", Decimal("85"), date(2024, 6, 1))
+        ExpenseService.register(session, prop.id, "community", Decimal("90"), date(2025, 1, 1))
 
-        expenses_2024 = ExpenseService.list_by_property(
-            session, prop.id, year=2024
-        )
+        expenses_2024 = ExpenseService.list_by_property(session, prop.id, year=2024)
         assert len(expenses_2024) == 1
 
         expenses_all = ExpenseService.list_by_property(session, prop.id)
@@ -152,9 +128,7 @@ class TestListByProperty:
 
 
 class TestSummary:
-    def test_summary_no_income_no_expenses(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_summary_no_income_no_expenses(self, session: Session, sample_lease: Lease):
         prop = session.get(Property, sample_lease.unit.property_id)
         result = ExpenseService.summary(session, prop.id, 2024)
 
@@ -164,9 +138,7 @@ class TestSummary:
         assert result["total_expenses"] == Decimal("0")
         assert result["net_profitability"] == Decimal("0")
 
-    def test_summary_with_expenses(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_summary_with_expenses(self, session: Session, sample_lease: Lease):
         prop = session.get(Property, sample_lease.unit.property_id)
         ExpenseService.register(
             session,
@@ -192,9 +164,7 @@ class TestSummary:
         assert result["by_category"]["community"] == Decimal("85")
         assert result["by_category"]["insurance"] == Decimal("30")
 
-    def test_summary_with_income(
-        self, session: Session, sample_lease: Lease
-    ):
+    def test_summary_with_income(self, session: Session, sample_lease: Lease):
         prop = session.get(Property, sample_lease.unit.property_id)
         rc = RentCondition(
             lease_id=sample_lease.id,

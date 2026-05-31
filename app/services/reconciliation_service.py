@@ -45,20 +45,14 @@ class ReconciliationService:
         bank_movement_id: int,
     ) -> list[Reconciliation]:
         movement = session.get(BankMovement, bank_movement_id)
-        if movement is None:
-            raise ReconciliationError(
-                f"BankMovement {bank_movement_id} not found"
-            )
+        if movement is None or movement.deleted_at is not None:
+            raise ReconciliationError(f"BankMovement {bank_movement_id} not found")
 
         if movement.status != "unmatched":
-            raise ReconciliationError(
-                f"BankMovement {bank_movement_id} already {movement.status}"
-            )
+            raise ReconciliationError(f"BankMovement {bank_movement_id} already {movement.status}")
 
         candidates: list[tuple[Payment, Decimal]] = []
-        payments = session.exec(
-            select(Payment).where(Payment.deleted_at.is_(None))
-        ).all()
+        payments = session.exec(select(Payment).where(Payment.deleted_at.is_(None))).all()
 
         for payment in payments:
             score = ReconciliationService._match_score(movement, payment)
@@ -73,6 +67,7 @@ class ReconciliationService:
                 select(Reconciliation).where(
                     Reconciliation.payment_id == payment.id,
                     Reconciliation.confirmed_at.is_not(None),
+                    Reconciliation.deleted_at.is_(None),
                 )
             ).first()
             if existing is not None:
@@ -97,9 +92,7 @@ class ReconciliationService:
         return reconciliations
 
     @staticmethod
-    def _match_score(
-        movement: BankMovement, payment: Payment
-    ) -> Decimal:
+    def _match_score(movement: BankMovement, payment: Payment) -> Decimal:
         score = Decimal("0")
         if movement.amount == payment.amount:
             score += Decimal("0.5")
@@ -108,8 +101,7 @@ class ReconciliationService:
         if days_diff <= ReconciliationService.MATCH_WINDOW_DAYS:
             score += Decimal("0.3") * (
                 Decimal("1")
-                - Decimal(str(days_diff))
-                / Decimal(str(ReconciliationService.MATCH_WINDOW_DAYS))
+                - Decimal(str(days_diff)) / Decimal(str(ReconciliationService.MATCH_WINDOW_DAYS))
             )
 
         common_words = set(movement.concept.lower().split()) & set(
@@ -128,13 +120,9 @@ class ReconciliationService:
         session: Session,
         reconciliation_id: int,
     ) -> Reconciliation:
-        reconciliation = session.get(
-            Reconciliation, reconciliation_id
-        )
-        if reconciliation is None:
-            raise ReconciliationError(
-                f"Reconciliation {reconciliation_id} not found"
-            )
+        reconciliation = session.get(Reconciliation, reconciliation_id)
+        if reconciliation is None or reconciliation.deleted_at is not None:
+            raise ReconciliationError(f"Reconciliation {reconciliation_id} not found")
 
         reconciliation.confirmed_at = datetime.now()
         reconciliation.bank_movement.status = "confirmed"

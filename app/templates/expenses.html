@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Gastos</h2>
+<table class="table table-striped mt-3">
+  <thead><tr><th>ID</th><th>Categoría</th><th>Importe</th><th>Fecha</th><th>Deducible</th><th>Proveedor</th></tr></thead>
+  <tbody>
+    {% for e in expenses %}
+    <tr>
+      <td>{{ e.id }}</td>
+      <td>{{ e.category }}</td>
+      <td>{{ "%.2f €"|format(e.amount) }}</td>
+      <td>{{ e.expense_date }}</td>
+      <td>{{ 'Sí' if e.deductible else 'No' }}</td>
+      <td>{{ e.supplier or '—' }}</td>
+    </tr>
+    {% endfor %}
+    {% if not expenses %}
+    <tr><td colspan="6" class="text-muted">No hay gastos este año</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+{% endblock %}

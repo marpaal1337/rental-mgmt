@@ -16,9 +16,7 @@ router = APIRouter(
 
 @router.get("")
 def list_payments(session: Session = Depends(get_session)):
-    return session.exec(
-        select(Payment).where(Payment.deleted_at.is_(None))
-    ).all()
+    return session.exec(select(Payment).where(Payment.deleted_at.is_(None))).all()
 
 
 @router.post("", status_code=201)

@@ -23,7 +23,7 @@ class PaymentService:
         notes: Optional[str] = None,
     ) -> Payment:
         invoice = session.get(Invoice, invoice_id)
-        if invoice is None:
+        if invoice is None or invoice.deleted_at is not None:
             raise PaymentError(f"Invoice {invoice_id} not found")
 
         if amount <= Decimal("0"):
@@ -48,7 +48,8 @@ class PaymentService:
     def _update_invoice_status(session: Session, invoice: Invoice) -> None:
         result = session.exec(
             select(func.sum(Payment.amount)).where(
-                Payment.invoice_id == invoice.id
+                Payment.invoice_id == invoice.id,
+                Payment.deleted_at.is_(None),
             )
         ).one()
 

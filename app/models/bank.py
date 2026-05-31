@@ -24,9 +24,7 @@ class BankMovement(AuditMixin, table=True):
     iban_origin: Optional[str] = Field(default=None, max_length=34)
     reference: Optional[str] = Field(default=None, max_length=100)
     status: str = Field(max_length=20, default="unmatched")
-    raw_data: Optional[str] = Field(
-        default=None, max_length=2000
-    )
+    raw_data: Optional[str] = Field(default=None, max_length=2000)
 
     reconciliation: Optional["Reconciliation"] = Relationship(
         back_populates="bank_movement",
@@ -37,12 +35,8 @@ class BankMovement(AuditMixin, table=True):
 class Reconciliation(AuditMixin, table=True):
     __tablename__ = "reconciliation"
 
-    bank_movement_id: int = Field(
-        foreign_key="bank_movement.id", nullable=False, unique=True
-    )
-    payment_id: int = Field(
-        foreign_key="payment.id", nullable=False
-    )
+    bank_movement_id: int = Field(foreign_key="bank_movement.id", nullable=False, unique=True)
+    payment_id: int = Field(foreign_key="payment.id", nullable=False)
     score: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(3, 2), nullable=False),
@@ -50,7 +44,5 @@ class Reconciliation(AuditMixin, table=True):
     confirmed_at: Optional[datetime] = Field(default=None)
     notes: Optional[str] = Field(default=None, max_length=1000)
 
-    bank_movement: "BankMovement" = Relationship(
-        back_populates="reconciliation"
-    )
+    bank_movement: "BankMovement" = Relationship(back_populates="reconciliation")
     payment: "Payment" = Relationship(back_populates="reconciliations")

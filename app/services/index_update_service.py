@@ -19,16 +19,12 @@ class IndexUpdateService:
         notes: Optional[str] = None,
     ) -> tuple[RentCondition, IndexUpdate]:
         lease = session.get(Lease, lease_id)
-        if lease is None:
+        if lease is None or lease.deleted_at is not None:
             raise NoActiveRentError(f"Lease {lease_id} not found")
 
-        previous_rent = LeaseService.get_active_rent(
-            session, lease_id, application_date
-        )
+        previous_rent = LeaseService.get_active_rent(session, lease_id, application_date)
 
-        new_rent = (previous_rent * (Decimal("1") + index_rate)).quantize(
-            Decimal("0.01")
-        )
+        new_rent = (previous_rent * (Decimal("1") + index_rate)).quantize(Decimal("0.01"))
 
         new_condition = RentCondition(
             lease_id=lease_id,

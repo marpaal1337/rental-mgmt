@@ -8,8 +8,8 @@ calidad del código, y **mantener actualizada la documentación**.
 
 ## Estado actual
 
-- **Fase completada**: Fase 9 — Automatización (APScheduler)
-- **Próxima fase**: Fase 10 — Calidad (backups, UI, cobertura)
+- **Fase completada**: Fase 10 — Calidad (backups, UI, cobertura, soft-delete audit)
+- **Próxima fase**: — (plan completado)
 - **Plan director**: `rental-mgmt-plan.md`
 - **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL), Alembic, pytest, ruff
 
@@ -71,8 +71,12 @@ rental-mgmt/
 │   ├── models/        → SQLModel entities
 │   ├── services/      → Lógica de negocio
 │   ├── api/           → Routers FastAPI (Fase 8)
-│   └── jobs/          → APScheduler jobs (Fase 9)
-├── data/db/           → SQLite database (ignorada por git)
+│   ├── jobs/          → APScheduler jobs (Fase 9)
+│   └── templates/     → Jinja2/HTMX templates (Fase 10)
+├── data/
+│   ├── db/            → SQLite database (ignorada por git)
+│   ├── backups/       → Backup automáticos (Fase 10)
+│   └── invoices/      → PDFs generados
 ├── tests/             → Pytest tests
 ├── alembic/           → Migraciones
 ├── scripts/           → Scripts auxiliares (doc generation, etc.)
@@ -93,4 +97,4 @@ rental-mgmt/
 8. ✅ **Fase 7** — Conciliación bancaria
 9. ✅ **Fase 8** — API REST completa
 10. ✅ **Fase 9** — Automatización (APScheduler)
-11. ⬜ **Fase 10** — Calidad (backups, UI, cobertura)
+11. ✅ **Fase 10** — Calidad (backups, UI, cobertura, soft-delete audit)

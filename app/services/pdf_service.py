@@ -27,18 +27,14 @@ INVOICES_DIR = Path("data") / "invoices"
 
 class PDFService:
     @staticmethod
-    def render_invoice(
-        session: Session, invoice_id: int
-    ) -> Path:
+    def render_invoice(session: Session, invoice_id: int) -> Path:
         invoice = session.get(Invoice, invoice_id)
-        if invoice is None:
+        if invoice is None or invoice.deleted_at is not None:
             raise PDFGenerationError(f"Invoice {invoice_id} not found")
 
         lines = invoice.lines
         if not lines:
-            raise PDFGenerationError(
-                f"Invoice {invoice_id} has no lines"
-            )
+            raise PDFGenerationError(f"Invoice {invoice_id} has no lines")
 
         lease = invoice.lease
         owner = lease.owner

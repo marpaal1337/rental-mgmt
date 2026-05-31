@@ -17,9 +17,7 @@ router = APIRouter(
 
 @router.get("")
 def list_invoices(session: Session = Depends(get_session)):
-    return session.exec(
-        select(Invoice).where(Invoice.deleted_at.is_(None))
-    ).all()
+    return session.exec(select(Invoice).where(Invoice.deleted_at.is_(None))).all()
 
 
 @router.get("/{invoice_id}")
@@ -50,6 +48,7 @@ def download_invoice_pdf(
     try:
         path = PDFService.render_invoice(session, invoice_id)
         from fastapi.responses import FileResponse
+
         return FileResponse(
             path,
             media_type="application/pdf",

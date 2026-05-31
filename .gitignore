@@ -36,6 +36,8 @@ data/db/*.db
 data/db/*.db-*
 data/invoices/*.pdf
 data/invoices/**/*.pdf
+data/backups/*.db
+!data/backups/.gitkeep
 
 # Logs
 *.log

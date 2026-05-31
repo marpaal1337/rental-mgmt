@@ -27,9 +27,7 @@ class Expense(AuditMixin, table=True):
     __tablename__ = "expense"
 
     property_id: int = Field(foreign_key="property.id", nullable=False)
-    lease_id: Optional[int] = Field(
-        default=None, foreign_key="lease.id", nullable=True
-    )
+    lease_id: Optional[int] = Field(default=None, foreign_key="lease.id", nullable=True)
     category: str = Field(max_length=50, nullable=False)
     amount: Decimal = Field(
         default=Decimal("0"),
