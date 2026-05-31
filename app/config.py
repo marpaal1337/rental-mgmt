@@ -6,3 +6,4 @@ load_dotenv()
 
 DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./data/db/rental.db")
 SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production")
+API_KEY: str = os.getenv("API_KEY", "dev-key-123")

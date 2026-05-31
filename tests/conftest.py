@@ -1,8 +1,18 @@
+import tempfile
 from datetime import date
+from typing import Generator
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 
+# Import all models to register them with SQLModel.metadata
+import app.models.bank  # noqa
+import app.models.expense  # noqa
+import app.models.invoice  # noqa
+import app.models.payment  # noqa
+from app.database import get_session
+from app.main import app as fastapi_app
 from app.models.lease import Lease
 from app.models.owner import Owner
 from app.models.property import Property
@@ -16,6 +26,24 @@ def session():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as s:
         yield s
+
+
+@pytest.fixture
+def client() -> Generator[TestClient, None, None]:
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        db_url = f"sqlite:///{tmp.name}"
+        eng = create_engine(db_url, echo=False)
+        SQLModel.metadata.create_all(eng)
+
+        def _override():
+            sess = Session(eng)
+            yield sess
+            sess.close()
+
+        fastapi_app.dependency_overrides[get_session] = _override
+        with TestClient(fastapi_app) as tc:
+            yield tc
+        fastapi_app.dependency_overrides.clear()
 
 
 @pytest.fixture

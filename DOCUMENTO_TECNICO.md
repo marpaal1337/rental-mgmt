@@ -26,6 +26,14 @@ rental-mgmt/
     └── script.py.mako
 ├── app/
     ├── api/
+        ├── routers/
+            ├── expenses.py
+            ├── invoices.py
+            ├── leases.py
+            ├── payments.py
+            └── reconciliation.py
+        ├── deps.py
+        └── schemas.py
     ├── jobs/
     ├── models/
         ├── bank.py
@@ -61,6 +69,7 @@ rental-mgmt/
     └── generate_docs.py
 ├── tests/
     ├── conftest.py
+    ├── test_api.py
     ├── test_expense_service.py
     ├── test_index_update_service.py
     ├── test_invoice_service.py
@@ -384,12 +393,55 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 45 tests**
+**Total: 57 tests**
 
 ### Fixtures
 
 - `session`
+- `client`
 - `sample_lease`
+
+### test_api.py — TestAuth
+
+| Test | Descripción |
+|---|---|
+| `test_no_key_returns_403` |  |
+| `test_invalid_key_returns_403` |  |
+| `test_valid_key_allows_access` |  |
+
+### test_api.py — TestLeases
+
+| Test | Descripción |
+|---|---|
+| `test_list_leases` |  |
+| `test_get_lease_not_found` |  |
+
+### test_api.py — TestInvoices
+
+| Test | Descripción |
+|---|---|
+| `test_generate_without_data_returns_empty` |  |
+
+### test_api.py — TestExpenses
+
+| Test | Descripción |
+|---|---|
+| `test_categories` |  |
+| `test_register_no_property_returns_error` |  |
+
+### test_api.py — TestReconciliation
+
+| Test | Descripción |
+|---|---|
+| `test_unmatched_returns_empty_list` |  |
+| `test_movements_empty` |  |
+
+### test_api.py — TestHealth
+
+| Test | Descripción |
+|---|---|
+| `test_health` |  |
+| `test_root` |  |
 
 ### test_expense_service.py — TestRegister
 

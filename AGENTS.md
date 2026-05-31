@@ -8,8 +8,8 @@ calidad del código, y **mantener actualizada la documentación**.
 
 ## Estado actual
 
-- **Fase completada**: Fase 7 — Conciliación bancaria
-- **Próxima fase**: Fase 8 — API REST completa
+- **Fase completada**: Fase 8 — API REST completa
+- **Próxima fase**: Fase 9 — Automatización (APScheduler)
 - **Plan director**: `rental-mgmt-plan.md`
 - **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL), Alembic, pytest, ruff
 
@@ -91,6 +91,6 @@ rental-mgmt/
 6. ✅ **Fase 5** — Pagos
 7. ✅ **Fase 6** — Gastos
 8. ✅ **Fase 7** — Conciliación bancaria
-9. ⬜ **Fase 8** — API REST completa
+9. ✅ **Fase 8** — API REST completa
 10. ⬜ **Fase 9** — Automatización (APScheduler)
 11. ⬜ **Fase 10** — Calidad (backups, UI, cobertura)

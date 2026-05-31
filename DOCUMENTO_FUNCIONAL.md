@@ -303,9 +303,37 @@ Se incluye adaptador genérico configurable (`GenericBankAdapter`) y uno especí
 # Arrancar la API
 uvicorn app.main:app --reload
 
-# Endpoints disponibles
-GET  /        → {"message": "Rental Management System API"}
-GET  /health  → {"status": "ok"}
+# Endpoints disponibles (todos requieren header X-API-Key)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/leases` | Listar contratos |
+| GET | `/leases/{id}` | Obtener contrato |
+| POST | `/leases` | Crear contrato |
+| GET | `/leases/{id}/rent` | Renta vigente |
+| POST | `/leases/{id}/apply-index` | Aplicar revisión IPC |
+| GET | `/invoices` | Listar facturas |
+| GET | `/invoices/{id}` | Obtener factura |
+| POST | `/invoices/generate` | Generar facturas mensuales |
+| GET | `/invoices/{id}/pdf` | Descargar PDF |
+| GET | `/payments` | Listar pagos |
+| POST | `/payments` | Registrar pago |
+| GET | `/expenses` | Listar gastos por propiedad |
+| POST | `/expenses` | Registrar gasto |
+| GET | `/expenses/categories` | Categorías disponibles |
+| GET | `/expenses/summary` | Resumen rentabilidad |
+| POST | `/reconciliation/import` | Importar CSV bancario |
+| POST | `/reconciliation/{id}/propose` | Proponer coincidencias |
+| POST | `/reconciliation/confirm/{id}` | Confirmar conciliación |
+| GET | `/reconciliation/unmatched` | Movimientos sin conciliar |
+| GET | `/reconciliation/proposed` | Movimientos propuestos |
+| GET | `/health` | Health check |
+
+# Configuración
+La API key se configura en `.env` como `API_KEY=mi-clave-secreta`.
+Por defecto (desarrollo): `dev-key-123`.
+
+# Ejecutar semilla
 
 # Ejecutar semilla
 python -m app.seed
@@ -327,6 +355,6 @@ pytest -v
 - ✅ **Fase 5**: Pagos (Payment, PaymentService.register)
 - ✅ **Fase 6**: Gastos (Expense, ExpenseService)
 - ✅ **Fase 7**: Conciliación bancaria (BankMovement, Reconciliation, ReconciliationService)
-- **Fase 8**: API REST completa con endpoints CRUD
+- ✅ **Fase 8**: API REST completa (20+ endpoints, auth API key) con endpoints CRUD
 - **Fase 9**: Automatización (facturación mensual automática, detección de impagos)
 - **Fase 10**: Backups, auditoría, UI opcional
