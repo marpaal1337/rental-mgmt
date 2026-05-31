@@ -19,7 +19,8 @@ rental-mgmt/
         ├── 20260531_0155_2e4d256a59c2_create_core_models.py
         ├── 20260531_0226_0928999bac08_add_index_update_table.py
         ├── 20260531_1300_a16509918b31_add_invoice_and_invoice_line_tables.py
-        └── 20260531_1305_bc191700d28c_add_payment_table.py
+        ├── 20260531_1305_bc191700d28c_add_payment_table.py
+        └── 20260531_1309_e1cd76ded677_add_expense_table.py
     ├── env.py
     └── script.py.mako
 ├── app/
@@ -27,6 +28,7 @@ rental-mgmt/
     ├── jobs/
     ├── models/
         ├── base.py
+        ├── expense.py
         ├── invoice.py
         ├── lease.py
         ├── owner.py
@@ -35,6 +37,7 @@ rental-mgmt/
         ├── tenant.py
         └── unit.py
     ├── services/
+        ├── expense_service.py
         ├── index_update_service.py
         ├── invoice_service.py
         ├── lease_service.py
@@ -54,6 +57,7 @@ rental-mgmt/
     └── generate_docs.py
 ├── tests/
     ├── conftest.py
+    ├── test_expense_service.py
     ├── test_index_update_service.py
     ├── test_invoice_service.py
     ├── test_lease_service.py
@@ -84,6 +88,24 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 - `created_at`: DateTime, default UTC now
 - `updated_at`: DateTime, default UTC now
 - `deleted_at`: DateTime | None (soft-delete)
+
+### Expense (`expense.py`)
+
+| Campo | Tipo | Nulo | FK |
+|---|---|---|---|
+| `property_id` | int | No | → `property.id` |
+| `lease_id` | Optional[int] | Sí | → `lease.id` |
+| `category` | str | No |  |
+| `amount` | Decimal | No |  |
+| `expense_date` | date | No |  |
+| `deductible` | bool | No |  |
+| `supplier` | Optional[str] | Sí |  |
+| `invoice_number` | Optional[str] | Sí |  |
+| `notes` | Optional[str] | Sí |  |
+
+**Relaciones:**
+- `property` → 1:1 → `expenses`
+- `lease` → 1:1 → `expenses`
 
 ### Invoice (`invoice.py`)
 
@@ -140,6 +162,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 - `deposit` → 1:1 → `lease`
 - `index_updates` → 1:N → `lease`
 - `invoices` → 1:N → `lease`
+- `expenses` → 1:N → `lease`
 
 ### RentCondition (`lease.py`)
 
@@ -237,6 +260,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 **Relaciones:**
 - `owner` → 1:1 → `properties`
 - `units` → 1:N → `property`
+- `expenses` → 1:N → `property`
 
 ### Tenant (`tenant.py`)
 
@@ -267,6 +291,12 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 4. Servicios
 
+### ExpenseService
+
+- **register**(`session`, `property_id`, `category`, `amount`, `expense_date`, `lease_id`, `deductible`, `supplier`, `invoice_number`, `notes`) → `Expense`
+- **list_by_property**(`session`, `property_id`, `year`) → `list[Expense]`
+- **summary**(`session`, `property_id`, `year`) → `dict`
+
 ### IndexUpdateService
 
 - **apply_index**(`session`, `lease_id`, `index_rate`, `application_date`, `index_name`, `notes`) → `tuple[RentCondition, IndexUpdate]`
@@ -291,12 +321,40 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 23 tests**
+**Total: 36 tests**
 
 ### Fixtures
 
 - `session`
 - `sample_lease`
+
+### test_expense_service.py — TestRegister
+
+| Test | Descripción |
+|---|---|
+| `test_register_valid_expense` |  |
+| `test_register_with_lease` |  |
+| `test_property_not_found_raises` |  |
+| `test_invalid_category_raises` |  |
+| `test_zero_amount_raises` |  |
+| `test_lease_not_found_raises` |  |
+
+### test_expense_service.py — TestListByProperty
+
+| Test | Descripción |
+|---|---|
+| `test_list_by_property` |  |
+| `test_list_by_property_and_year` |  |
+| `test_property_not_found_raises` |  |
+
+### test_expense_service.py — TestSummary
+
+| Test | Descripción |
+|---|---|
+| `test_summary_no_income_no_expenses` |  |
+| `test_summary_with_expenses` |  |
+| `test_summary_with_income` |  |
+| `test_summary_property_not_found_raises` |  |
 
 ### test_index_update_service.py — TestApplyIndex
 
@@ -355,6 +413,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
   - Padre: `0928999b`
 - **`bc191700`** → add payment table
   - Padre: `a1650991`
+- **`e1cd76de`** → add expense table
+  - Padre: `bc191700`
 
 ```bash
 alembic upgrade head    # Aplicar pendientes

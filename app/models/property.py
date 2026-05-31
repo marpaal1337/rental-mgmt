@@ -5,6 +5,7 @@ from sqlmodel import Field, Relationship
 from app.models.base import AuditMixin
 
 if TYPE_CHECKING:
+    from app.models.expense import Expense
     from app.models.owner import Owner
     from app.models.unit import Unit
 
@@ -22,3 +23,4 @@ class Property(AuditMixin, table=True):
 
     owner: "Owner" = Relationship(back_populates="properties")
     units: List["Unit"] = Relationship(back_populates="property")
+    expenses: List["Expense"] = Relationship(back_populates="property")

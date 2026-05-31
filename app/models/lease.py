@@ -8,6 +8,7 @@ from sqlmodel import Field, Relationship
 from app.models.base import AuditMixin
 
 if TYPE_CHECKING:
+    from app.models.expense import Expense
     from app.models.invoice import Invoice
     from app.models.owner import Owner
     from app.models.tenant import Tenant
@@ -45,6 +46,7 @@ class Lease(AuditMixin, table=True):
     invoices: List["Invoice"] = Relationship(
         back_populates="lease"
     )
+    expenses: List["Expense"] = Relationship(back_populates="lease")
 
 
 class RentCondition(AuditMixin, table=True):

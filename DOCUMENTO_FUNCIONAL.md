@@ -213,6 +213,37 @@ with Session(engine) as session:
     print(f"Factura estado: {pago.invoice.status}")  # → "paid"
 ```
 
+### 3.6 ExpenseService — Gestión de gastos
+
+Registra gastos del inmueble y ofrece resumen de rentabilidad neta.
+
+**Categorías disponibles**: community (comunidad), repairs (reparaciones), supplies (suministros), taxes (IBI/basuras), insurance (seguro), admin_fees (gastos de administración), other (otros).
+
+**Register**:
+```python
+gasto = ExpenseService.register(
+    session=session,
+    property_id=1,
+    category="community",
+    amount=Decimal("85.50"),
+    expense_date=date(2024, 6, 1),
+    deductible=True,
+    supplier="Comunidad Centro",
+)
+```
+
+**Summary**: ingresos totales del año vs gastos totales, rentabilidad neta:
+```python
+resumen = ExpenseService.summary(session, property_id=1, year=2024)
+# => {
+#     "total_income": Decimal("10200.00"),
+#     "total_expenses": Decimal("1026.00"),
+#     "deductible_expenses": Decimal("996.00"),
+#     "net_profitability": Decimal("9174.00"),
+#     "by_category": {"community": Decimal("1026.00")}
+# }
+```
+
 ---
 
 ## 4. Datos de semilla
@@ -261,7 +292,7 @@ pytest -v
 - ✅ **Fase 3**: Facturación mensual con IVA/IRPF correcto (Invoice, InvoiceLine, InvoiceService)
 - ✅ **Fase 4**: PDF de factura (PDFService.render_invoice)
 - ✅ **Fase 5**: Pagos (Payment, PaymentService.register)
-- **Fase 6**: Gastos
+- ✅ **Fase 6**: Gastos (Expense, ExpenseService)
 - **Fase 7**: Conciliación bancaria (importar CSV)
 - **Fase 8**: API REST completa con endpoints CRUD
 - **Fase 9**: Automatización (facturación mensual automática, detección de impagos)
