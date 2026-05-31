@@ -27,6 +27,7 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+.ruff_cache/
 
 # Alembic
 alembic/versions/*.pyc
@@ -34,6 +35,7 @@ alembic/versions/*.pyc
 # Data (SQLite database and generated files)
 data/db/*.db
 data/db/*.db-*
+!data/db/.gitkeep
 data/invoices/*.pdf
 data/invoices/**/*.pdf
 data/backups/*.db
@@ -41,3 +43,7 @@ data/backups/*.db
 
 # Logs
 *.log
+
+# Editor swap files
+*.swp
+*.swo
