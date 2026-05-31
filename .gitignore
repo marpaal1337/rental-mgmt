@@ -34,6 +34,8 @@ alembic/versions/*.pyc
 # Data (SQLite database and generated files)
 data/db/*.db
 data/db/*.db-*
+data/invoices/*.pdf
+data/invoices/**/*.pdf
 
 # Logs
 *.log
