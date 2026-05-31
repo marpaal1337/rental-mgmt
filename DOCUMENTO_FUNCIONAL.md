@@ -360,5 +360,4 @@ pytest -v
 - ✅ **Fase 10**: Calidad:
   - **Backups automáticos**: copia diaria de `rental.db` con retención de 7 días, ejecutada vía APScheduler a las 5:00
   - **Soft-delete audit**: verificación y parche de `deleted_at.is_(None)` en todos los servicios (16 ubicaciones corregidas)
-  - **UI básica HTMX + Jinja2**: panel web con Bootstrap para Dashboard, Contratos, Facturas, Pagos y Gastos
-  - **Cobertura de tests**: 99 % en `services/`, 79 tests totales
+   - **Cobertura de tests**: 99 % en `services/`, 79 tests totales

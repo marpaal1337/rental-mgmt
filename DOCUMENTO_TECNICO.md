@@ -7,7 +7,7 @@
 | Capa | Tecnología |
 |---|---|
 | Runtime | Python ≥ 3.11 |
-| Dependencias principales | , fastapi, uvicorn[standard], sqlmodel, alembic, apscheduler, reportlab, jinja2, python-dotenv, python-multipart, pytest, pytest-asyncio, ruff |
+| Dependencias principales | , fastapi, uvicorn[standard], sqlmodel, alembic, apscheduler, reportlab, python-dotenv, python-multipart, pytest, pytest-asyncio, ruff |
 | Dependencias de desarrollo | pytest, pytest-asyncio, ruff |
 
 ## 2. Estructura del proyecto
@@ -30,9 +30,9 @@ rental-mgmt/
             ├── expenses.py
             ├── invoices.py
             ├── leases.py
-            ├── pages.py
             ├── payments.py
-            └── reconciliation.py
+            ├── reconciliation.py
+            └── stats.py
         ├── deps.py
         └── schemas.py
     ├── jobs/
@@ -62,13 +62,6 @@ rental-mgmt/
         ├── payment_service.py
         ├── pdf_service.py
         └── reconciliation_service.py
-    ├── templates/
-        ├── base.html
-        ├── dashboard.html
-        ├── expenses.html
-        ├── invoices.html
-        ├── leases.html
-        └── payments.html
     ├── config.py
     ├── database.py
     ├── main.py
@@ -79,7 +72,12 @@ rental-mgmt/
         ├── rental_20260531_120051.db
         ├── rental_20260531_120056.db
         ├── rental_20260531_120345.db
-        └── rental_20260531_120353.db
+        ├── rental_20260531_120353.db
+        ├── rental_20260531_120447.db
+        ├── rental_20260531_121611.db
+        ├── rental_20260531_122111.db
+        ├── rental_20260531_123442.db
+        └── rental_20260531_123449.db
     ├── db/
         └── rental.db
     ├── invoices/
@@ -98,7 +96,6 @@ rental-mgmt/
     ├── test_invoice_service.py
     ├── test_jobs.py
     ├── test_lease_service.py
-    ├── test_pages.py
     ├── test_payment_service.py
     ├── test_pdf_service.py
     ├── test_reconciliation_service.py
@@ -434,7 +431,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 77 tests**
+**Total: 75 tests**
 
 ### Fixtures
 
@@ -603,13 +600,6 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_date_before_any_condition_raises` |  |
 | `test_unknown_lease_raises` |  |
 | `test_default_date` |  |
-
-### test_pages.py — TestPages
-
-| Test | Descripción |
-|---|---|
-| `test_dashboard` |  |
-| `test_leases_page` |  |
 
 ### test_payment_service.py — TestRegisterPayment
 

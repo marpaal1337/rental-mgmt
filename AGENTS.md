@@ -8,10 +8,12 @@ calidad del código, y **mantener actualizada la documentación**.
 
 ## Estado actual
 
-- **Fase completada**: Fase 10 — Calidad (backups, UI, cobertura, soft-delete audit)
+- **Fase completada**: Fase 10 — Calidad (backups, cobertura, soft-delete audit)
 - **Próxima fase**: — (plan completado)
 - **Plan director**: `rental-mgmt-plan.md`
-- **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL), Alembic, pytest, ruff
+- **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL), Alembic, reportlab, pytest, ruff
+- **Frontend**: Vite + React 19 + TypeScript + Ant Design + React Router + Axios
+- **E2E**: Playwright (chromium)
 
 ## Documentación del proyecto
 
@@ -70,9 +72,18 @@ rental-mgmt/
 ├── app/
 │   ├── models/        → SQLModel entities
 │   ├── services/      → Lógica de negocio
-│   ├── api/           → Routers FastAPI (Fase 8)
-│   ├── jobs/          → APScheduler jobs (Fase 9)
-│   └── templates/     → Jinja2/HTMX templates (Fase 10)
+│   ├── api/           → Routers FastAPI
+│   │   └── routers/   → leases, invoices, payments, expenses,
+│   │                   owners, tenants, properties, units,
+│   │                   reconciliation, stats
+│   └── jobs/          → APScheduler jobs
+├── frontend/
+│   ├── src/
+│   │   ├── api/       → Axios client + endpoints
+│   │   ├── pages/     → Dashboard, Leases, Invoices, Payments, Expenses
+│   │   ├── components/→ AppLayout, LeaseForm, PaymentForm, ExpenseForm
+│   │   └── types/     → TypeScript interfaces
+│   └── e2e/           → Playwright E2E tests
 ├── data/
 │   ├── db/            → SQLite database (ignorada por git)
 │   ├── backups/       → Backup automáticos (Fase 10)
@@ -97,4 +108,4 @@ rental-mgmt/
 8. ✅ **Fase 7** — Conciliación bancaria
 9. ✅ **Fase 8** — API REST completa
 10. ✅ **Fase 9** — Automatización (APScheduler)
-11. ✅ **Fase 10** — Calidad (backups, UI, cobertura, soft-delete audit)
+11. ✅ **Fase 10** — Calidad (backups, cobertura, soft-delete audit)
