@@ -2,10 +2,11 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from app.api.deps import verify_api_key
-from app.api.schemas import IndexApplyRequest, LeaseCreate
+from app.api.schemas import IndexApplyRequest, LeaseCreate, LeaseUpdate
 from app.database import get_session
 from app.models.lease import Lease
 from app.services.index_update_service import IndexUpdateService
@@ -20,7 +21,15 @@ router = APIRouter(
 
 @router.get("")
 def list_leases(session: Session = Depends(get_session)):
-    return session.exec(select(Lease).where(Lease.deleted_at.is_(None))).all()
+    return session.exec(
+        select(Lease)
+        .options(
+            selectinload(Lease.tenant),
+            selectinload(Lease.owner),
+            selectinload(Lease.unit),
+        )
+        .where(Lease.deleted_at.is_(None))
+    ).all()
 
 
 @router.get("/{lease_id}")
@@ -37,6 +46,23 @@ def create_lease(
     session: Session = Depends(get_session),
 ):
     lease = Lease(**body.model_dump())
+    session.add(lease)
+    session.commit()
+    session.refresh(lease)
+    return lease
+
+
+@router.put("/{lease_id}")
+def update_lease(
+    lease_id: int,
+    body: LeaseUpdate,
+    session: Session = Depends(get_session),
+):
+    lease = session.get(Lease, lease_id)
+    if lease is None or lease.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Lease not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(lease, field, value)
     session.add(lease)
     session.commit()
     session.refresh(lease)

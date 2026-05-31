@@ -50,5 +50,34 @@ class IndexApplyRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class LeaseUpdate(BaseModel):
+    unit_id: Optional[int] = None
+    tenant_id: Optional[int] = None
+    owner_id: Optional[int] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_active: Optional[bool] = None
+    notes: Optional[str] = None
+
+
+class ExpenseUpdate(BaseModel):
+    property_id: Optional[int] = None
+    category: Optional[str] = None
+    amount: Optional[Decimal] = None
+    expense_date: Optional[date] = None
+    lease_id: Optional[int] = None
+    deductible: Optional[bool] = None
+    supplier: Optional[str] = None
+    invoice_number: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class PaymentUpdate(BaseModel):
+    amount: Optional[Decimal] = None
+    payment_date: Optional[date] = None
+    method: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class RentQueryParams(BaseModel):
     date: Optional[date] = None

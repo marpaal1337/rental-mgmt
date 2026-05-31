@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.api.deps import verify_api_key
-from app.api.schemas import ExpenseCreate
+from app.api.schemas import ExpenseCreate, ExpenseUpdate
 from app.database import get_session
 from app.models.expense import EXPENSE_CATEGORIES
+from app.models.expense import Expense as ExpenseModel
 from app.services.expense_service import ExpenseError, ExpenseService
 
 router = APIRouter(
@@ -49,6 +50,23 @@ def register_expense(
         return expense
     except ExpenseError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{expense_id}")
+def update_expense(
+    expense_id: int,
+    body: ExpenseUpdate,
+    session: Session = Depends(get_session),
+):
+    expense = session.get(ExpenseModel, expense_id)
+    if expense is None or expense.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(expense, field, value)
+    session.add(expense)
+    session.commit()
+    session.refresh(expense)
+    return expense
 
 
 @router.get("/categories")
