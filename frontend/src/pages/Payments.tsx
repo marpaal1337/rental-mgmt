@@ -1,6 +1,6 @@
-import { Button, Space, Table, Tag, Typography, Spin } from 'antd'
+import { Button, Empty, Space, Table, Tag, Typography, Spin, message } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchPayments } from '../api/endpoints'
 import PaymentForm from '../components/PaymentForm'
 import type { Payment } from '../types'
@@ -12,6 +12,8 @@ const methodColors: Record<string, string> = {
   domiciliacion: 'purple',
 }
 
+const emptyText = () => <Empty description="No hay pagos" />
+
 export default function Payments() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,12 +22,14 @@ export default function Payments() {
 
   const load = () => {
     setLoading(true)
-    fetchPayments().then(setPayments).finally(() => setLoading(false))
+    fetchPayments().then(setPayments).catch(() => message.error('Error al cargar pagos')).finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  useEffect(() => {
+    fetchPayments().then(setPayments).catch(() => message.error('Error al cargar pagos')).finally(() => setLoading(false))
+  }, [])
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     { title: 'Factura', dataIndex: 'invoice_id', key: 'invoice_id' },
     {
@@ -57,6 +61,7 @@ export default function Payments() {
         <Button
           type="link"
           icon={<EditOutlined />}
+          aria-label="Editar pago"
           onClick={() => {
             setEditing(r)
             setFormOpen(true)
@@ -64,20 +69,20 @@ export default function Payments() {
         />
       ),
     },
-  ]
+  ], [])
 
   return (
     <>
       <Typography.Title level={3}>
         <Space align="center">
           Pagos
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditing(null); setFormOpen(true) }}>
+          <Button type="primary" icon={<PlusOutlined />} aria-label="Registrar pago" onClick={() => { setEditing(null); setFormOpen(true) }}>
             Registrar
           </Button>
         </Space>
       </Typography.Title>
       <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={payments} pagination={false} />
+        <Table rowKey="id" columns={columns} dataSource={payments} pagination={false} locale={{ emptyText }} />
       </Spin>
       <PaymentForm
         open={formOpen}

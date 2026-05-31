@@ -1,9 +1,11 @@
-import { Button, Space, Table, Tag, Typography, Spin } from 'antd'
+import { Button, Empty, Space, Table, Tag, Typography, Spin, message } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchLeases } from '../api/endpoints'
 import LeaseForm from '../components/LeaseForm'
 import type { Lease } from '../types'
+
+const emptyText = () => <Empty description="No hay contratos" />
 
 export default function Leases() {
   const [leases, setLeases] = useState<Lease[]>([])
@@ -13,12 +15,14 @@ export default function Leases() {
 
   const load = () => {
     setLoading(true)
-    fetchLeases().then(setLeases).finally(() => setLoading(false))
+    fetchLeases().then(setLeases).catch(() => message.error('Error al cargar contratos')).finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  useEffect(() => {
+    fetchLeases().then(setLeases).catch(() => message.error('Error al cargar contratos')).finally(() => setLoading(false))
+  }, [])
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     {
       title: 'Inquilino',
@@ -57,6 +61,7 @@ export default function Leases() {
         <Button
           type="link"
           icon={<EditOutlined />}
+          aria-label="Editar contrato"
           onClick={() => {
             setEditing(r)
             setFormOpen(true)
@@ -64,20 +69,20 @@ export default function Leases() {
         />
       ),
     },
-  ]
+  ], [])
 
   return (
     <>
       <Typography.Title level={3}>
         <Space align="center">
           Contratos
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditing(null); setFormOpen(true) }}>
+          <Button type="primary" icon={<PlusOutlined />} aria-label="Nuevo contrato" onClick={() => { setEditing(null); setFormOpen(true) }}>
             Nuevo
           </Button>
         </Space>
       </Typography.Title>
       <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={leases} pagination={false} />
+        <Table rowKey="id" columns={columns} dataSource={leases} pagination={false} locale={{ emptyText }} />
       </Spin>
       <LeaseForm
         open={formOpen}

@@ -11,6 +11,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchStats()
       .then(setStats)
+      .catch(() => setStats(null))
       .finally(() => setLoading(false))
   }, [])
 

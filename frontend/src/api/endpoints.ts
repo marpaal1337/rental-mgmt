@@ -48,10 +48,12 @@ export async function generateInvoices(payload: InvoiceGeneratePayload): Promise
   return data
 }
 
-export async function fetchInvoicePdfUrl(id: number): Promise<string> {
+export async function downloadInvoicePdf(id: number): Promise<void> {
   const res = await client.get(`/invoices/${id}/pdf`, { responseType: 'blob' })
   const blob = new Blob([res.data], { type: 'application/pdf' })
-  return URL.createObjectURL(blob)
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 export async function fetchPayments(): Promise<Payment[]> {

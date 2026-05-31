@@ -1,7 +1,7 @@
-import { Button, Space, Table, Tag, Typography, Spin, message } from 'antd'
+import { Button, Empty, Space, Table, Tag, Typography, Spin, message } from 'antd'
 import { DownloadOutlined, PlusOutlined } from '@ant-design/icons'
-import { useEffect, useState } from 'react'
-import { fetchInvoicePdfUrl, fetchInvoices } from '../api/endpoints'
+import { useEffect, useMemo, useState } from 'react'
+import { downloadInvoicePdf, fetchInvoices } from '../api/endpoints'
 import InvoiceGenerateForm from '../components/InvoiceGenerateForm'
 import type { Invoice } from '../types'
 
@@ -17,6 +17,8 @@ const statusLabels: Record<string, string> = {
   paid: 'Pagada',
 }
 
+const emptyText = () => <Empty description="No hay facturas" />
+
 export default function Invoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
@@ -24,12 +26,14 @@ export default function Invoices() {
 
   const load = () => {
     setLoading(true)
-    fetchInvoices().then(setInvoices).finally(() => setLoading(false))
+    fetchInvoices().then(setInvoices).catch(() => message.error('Error al cargar facturas')).finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  useEffect(() => {
+    fetchInvoices().then(setInvoices).catch(() => message.error('Error al cargar facturas')).finally(() => setLoading(false))
+  }, [])
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     { title: 'Periodo', dataIndex: 'period', key: 'period' },
     {
@@ -54,33 +58,27 @@ export default function Invoices() {
         <Button
           type="link"
           icon={<DownloadOutlined />}
-          onClick={async () => {
-            try {
-              const url = await fetchInvoicePdfUrl(r.id)
-              window.open(url, '_blank')
-            } catch {
-              message.error('Error al descargar PDF')
-            }
-          }}
+          aria-label="Descargar PDF"
+          onClick={() => downloadInvoicePdf(r.id).catch(() => message.error('Error al descargar PDF'))}
         >
           PDF
         </Button>
       ),
     },
-  ]
+  ], [])
 
   return (
     <>
       <Typography.Title level={3}>
         <Space align="center">
           Facturas
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} aria-label="Generar facturas" onClick={() => setFormOpen(true)}>
             Generar
           </Button>
         </Space>
       </Typography.Title>
       <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={invoices} pagination={false} />
+        <Table rowKey="id" columns={columns} dataSource={invoices} pagination={false} locale={{ emptyText }} />
       </Spin>
       <InvoiceGenerateForm
         open={formOpen}

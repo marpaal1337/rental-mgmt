@@ -1,6 +1,6 @@
-import { Button, Select, Space, Table, Tag, Typography, Spin } from 'antd'
+import { Button, Empty, message, Select, Space, Table, Tag, Typography, Spin } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchExpenses, fetchProperties } from '../api/endpoints'
 import ExpenseForm from '../components/ExpenseForm'
 import type { Expense, Property } from '../types'
@@ -15,6 +15,8 @@ const categoryLabels: Record<string, string> = {
   other: 'Otros',
 }
 
+const emptyText = () => <Empty description="No hay gastos" />
+
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,13 +25,13 @@ export default function Expenses() {
   const [properties, setProperties] = useState<Property[]>([])
   const [selectedProperty, setSelectedProperty] = useState<number | null>(null)
 
-  const load = (propertyId: number) => {
+  const load = useCallback((propertyId: number) => {
     setLoading(true)
     fetchExpenses(propertyId)
       .then(setExpenses)
-      .catch(() => setExpenses([]))
+      .catch(() => { setExpenses([]); message.error('Error al cargar gastos') })
       .finally(() => setLoading(false))
-  }
+  }, [])
 
   useEffect(() => {
     fetchProperties().then((p) => {
@@ -40,10 +42,10 @@ export default function Expenses() {
       } else {
         setLoading(false)
       }
-    })
-  }, [])
+    }).catch(() => message.error('Error al cargar propiedades'))
+  }, [load])
 
-  const columns = [
+  const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     {
       title: 'Categoría',
@@ -79,6 +81,7 @@ export default function Expenses() {
         <Button
           type="link"
           icon={<EditOutlined />}
+          aria-label="Editar gasto"
           onClick={() => {
             setEditing(r)
             setFormOpen(true)
@@ -86,14 +89,14 @@ export default function Expenses() {
         />
       ),
     },
-  ]
+  ], [])
 
   return (
     <>
       <Typography.Title level={3}>
         <Space align="center">
           Gastos
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditing(null); setFormOpen(true) }}>
+          <Button type="primary" icon={<PlusOutlined />} aria-label="Registrar gasto" onClick={() => { setEditing(null); setFormOpen(true) }}>
             Registrar
           </Button>
         </Space>
@@ -111,7 +114,7 @@ export default function Expenses() {
         />
       </Space>
       <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={expenses} pagination={false} />
+        <Table rowKey="id" columns={columns} dataSource={expenses} pagination={false} locale={{ emptyText }} />
       </Spin>
       <ExpenseForm
         open={formOpen}
