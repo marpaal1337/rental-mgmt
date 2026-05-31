@@ -96,6 +96,14 @@ rental-mgmt/
 └── AGENTS.md          ← Este archivo
 ```
 
+## Skills externas instaladas
+
+| Skill | Propósito | Repo |
+|---|---|---|
+| `frontend-design` | Interfaces frontend distintivas evitando estética AI genérica | anthropics/skills |
+| `vercel-react-best-practices` | 70+ reglas de optimización React/Next.js | vercel-labs/agent-skills |
+| `web-design-guidelines` | Auditoría de UI contra estándares de accesibilidad y UX | vercel-labs/agent-skills |
+
 ## Fases del plan
 
 1. ✅ **Fase 0** — Bootstrap (FastAPI hello, pytest, ruff, estructura)
