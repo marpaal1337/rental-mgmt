@@ -8,6 +8,7 @@ from sqlmodel import Field, Relationship
 from app.models.base import AuditMixin
 
 if TYPE_CHECKING:
+    from app.models.invoice import Invoice
     from app.models.owner import Owner
     from app.models.tenant import Tenant
     from app.models.unit import Unit
@@ -39,6 +40,9 @@ class Lease(AuditMixin, table=True):
         sa_relationship_kwargs={"uselist": False},
     )
     index_updates: List["IndexUpdate"] = Relationship(
+        back_populates="lease"
+    )
+    invoices: List["Invoice"] = Relationship(
         back_populates="lease"
     )
 

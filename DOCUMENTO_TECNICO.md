@@ -17,7 +17,8 @@ rental-mgmt/
 ├── alembic/
     ├── versions/
         ├── 20260531_0155_2e4d256a59c2_create_core_models.py
-        └── 20260531_0226_0928999bac08_add_index_update_table.py
+        ├── 20260531_0226_0928999bac08_add_index_update_table.py
+        └── 20260531_1300_a16509918b31_add_invoice_and_invoice_line_tables.py
     ├── env.py
     └── script.py.mako
 ├── app/
@@ -25,6 +26,7 @@ rental-mgmt/
     ├── jobs/
     ├── models/
         ├── base.py
+        ├── invoice.py
         ├── lease.py
         ├── owner.py
         ├── property.py
@@ -32,6 +34,7 @@ rental-mgmt/
         └── unit.py
     ├── services/
         ├── index_update_service.py
+        ├── invoice_service.py
         └── lease_service.py
     ├── config.py
     ├── database.py
@@ -46,6 +49,7 @@ rental-mgmt/
 ├── tests/
     ├── conftest.py
     ├── test_index_update_service.py
+    ├── test_invoice_service.py
     ├── test_lease_service.py
     └── test_sanity.py
 ├── .env
@@ -73,6 +77,39 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 - `updated_at`: DateTime, default UTC now
 - `deleted_at`: DateTime | None (soft-delete)
 
+### Invoice (`invoice.py`)
+
+| Campo | Tipo | Nulo | FK |
+|---|---|---|---|
+| `period` | str | No |  |
+| `lease_id` | int | No | → `lease.id` |
+| `issue_date` | date | No |  |
+| `status` | str | No |  |
+| `total_base` | Decimal | No |  |
+| `total_vat` | Decimal | No |  |
+| `total_irpf_withholding` | Decimal | No |  |
+| `total` | Decimal | No |  |
+| `notes` | Optional[str] | Sí |  |
+
+**Relaciones:**
+- `lease` → 1:1 → `invoices`
+- `lines` → 1:N → `invoice`
+
+### InvoiceLine (`invoice.py`)
+
+| Campo | Tipo | Nulo | FK |
+|---|---|---|---|
+| `invoice_id` | int | No | → `invoice.id` |
+| `concept` | str | No |  |
+| `base_amount` | Decimal | No |  |
+| `vat_rate` | Decimal | No |  |
+| `vat_amount` | Decimal | No |  |
+| `irpf_rate` | Decimal | No |  |
+| `irpf_withholding` | Decimal | No |  |
+
+**Relaciones:**
+- `invoice` → 1:1 → `lines`
+
 ### Lease (`lease.py`)
 
 | Campo | Tipo | Nulo | FK |
@@ -93,6 +130,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 - `tax_profile` → 1:1 → `lease`
 - `deposit` → 1:1 → `lease`
 - `index_updates` → 1:N → `lease`
+- `invoices` → 1:N → `lease`
 
 ### RentCondition (`lease.py`)
 
@@ -211,13 +249,17 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 - **apply_index**(`session`, `lease_id`, `index_rate`, `application_date`, `index_name`, `notes`) → `tuple[RentCondition, IndexUpdate]`
 
+### InvoiceService
+
+- **generate_monthly**(`session`, `period`) → `List[Invoice]`
+
 ### LeaseService
 
 - **get_active_rent**(`session`, `lease_id`, `target_date`) → `Decimal`
 
 ## 5. Tests
 
-**Total: 9 tests**
+**Total: 14 tests**
 
 ### Fixtures
 
@@ -231,6 +273,16 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_apply_index_creates_new_rent_and_record` |  |
 | `test_apply_index_multiple_times` |  |
 | `test_apply_index_zero_rate` |  |
+
+### test_invoice_service.py — TestGenerateMonthly
+
+| Test | Descripción |
+|---|---|
+| `test_vivienda_invoice_no_taxes` |  |
+| `test_local_invoice_with_taxes` |  |
+| `test_idempotent_does_not_duplicate` |  |
+| `test_leases_without_tax_profile_raises` |  |
+| `test_inactive_lease_ignored` |  |
 
 ### test_lease_service.py — TestGetActiveRent
 
@@ -248,6 +300,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 - **`2e4d256a`** → create core models
 - **`0928999b`** → add index_update table
   - Padre: `2e4d256a`
+- **`a1650991`** → add invoice and invoice_line tables
+  - Padre: `0928999b`
 
 ```bash
 alembic upgrade head    # Aplicar pendientes

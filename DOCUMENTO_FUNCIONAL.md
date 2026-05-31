@@ -85,6 +85,22 @@ la nueva, el tipo de índice y su valor, y la fecha de aplicación.
 
 **Campos**: fecha de aplicación, renta anterior, renta nueva, tipo de índice, valor del índice.
 
+### 2.10 Invoice (Factura)
+
+Factura mensual generada automáticamente para un contrato. Refleja el periodo,
+los importes calculados con IVA/IRPF según el perfil fiscal del contrato,
+y el estado (borrador/emitida/cobrada/cancelada).
+
+**Campos**: periodo (YYYY-MM), fecha de emisión, estado, base imponible total,
+cuota IVA total, retención IRPF total, importe total.
+
+### 2.11 InvoiceLine (Línea de factura)
+
+Cada línea detalla un concepto de la factura: base imponible, tipo de IVA,
+cuota IVA, tipo de IRPF y retención aplicada.
+
+**Campos**: concepto, base imponible, tipo IVA, cuota IVA, tipo IRPF, retención IRPF.
+
 ---
 
 ## 3. Servicios disponibles
@@ -114,6 +130,32 @@ Aplica una revisión de renta por índice (IPC, IRAV, IGC).
 
 **Ejemplo**: IPC del 2 % el 1 de enero de 2025 sobre una renta de 1000 €
 → nueva renta de 1020 €, registro de revisión guardado.
+
+### 3.3 InvoiceService.generate_monthly(period)
+
+Genera facturas para todos los contratos activos en un periodo mensual dado.
+
+**Qué hace**:
+1. Busca todos los leases activos
+2. Por cada lease, comprueba si ya existe factura para ese periodo (idempotente)
+3. Obtiene la renta vigente y el perfil fiscal del contrato
+4. Calcula IVA (si aplica) y retención IRPF (si aplica)
+5. Crea una factura con una línea de detalle
+
+**Casos de uso**:
+- Generar todas las facturas del mes de junio 2026 de una sola vez
+- Regenerar facturas de un periodo concreto
+
+**Idempotente**: si ya existe una factura para ese lease y periodo, la salta.
+
+**Si no hay perfil fiscal**: lanza `InvoiceGenerationError`.
+
+**Ejemplos**:
+
+| Tipo | Renta | IVA | IRPF | Total factura |
+|---|---|---|---|---|
+| Vivienda | 850,00 € | 0,00 € (exento) | 0,00 € | **850,00 €** |
+| Local | 1.500,00 € | 315,00 € (21 %) | 285,00 € (19 %) | **1.530,00 €** |
 
 ---
 
@@ -160,7 +202,7 @@ pytest -v
 
 ## 6. Lo que viene (próximas fases)
 
-- **Fase 3**: Facturación mensual con IVA/IRPF correcto (Invoice + InvoiceLine)
+- ✅ **Fase 3**: Facturación mensual con IVA/IRPF correcto (Invoice, InvoiceLine, InvoiceService)
 - **Fase 4**: Generación de PDF de facturas
 - **Fase 5**: Registro de pagos
 - **Fase 6**: Gastos del inmueble

@@ -1,4 +1,5 @@
 from app.models.base import AuditMixin
+from app.models.invoice import Invoice, InvoiceLine
 from app.models.lease import Deposit, IndexUpdate, Lease, RentCondition, TaxProfile
 from app.models.owner import Owner
 from app.models.property import Property
@@ -9,6 +10,8 @@ __all__ = [
     "AuditMixin",
     "Deposit",
     "IndexUpdate",
+    "Invoice",
+    "InvoiceLine",
     "Lease",
     "Owner",
     "Property",
