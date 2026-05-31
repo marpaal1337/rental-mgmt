@@ -157,6 +157,29 @@ Genera facturas para todos los contratos activos en un periodo mensual dado.
 | Vivienda | 850,00 € | 0,00 € (exento) | 0,00 € | **850,00 €** |
 | Local | 1.500,00 € | 315,00 € (21 %) | 285,00 € (19 %) | **1.530,00 €** |
 
+### 3.4 PDFService.render_invoice(invoice_id)
+
+Convierte una factura en un PDF listo para enviar al inquilino.
+
+**Qué hace**:
+1. Lee la factura de la BD con todas sus relaciones (lease, owner, tenant, líneas)
+2. Construye un PDF con formato profesional español usando ReportLab
+3. Incluye: datos del arrendador, arrendatario, tabla de líneas, desglose fiscal, total
+4. Almacena el PDF en `data/invoices/{año}/{mes}/{invoice_id}.pdf`
+
+**Salida**: ruta al archivo PDF generado.
+
+**Ejemplo de uso**:
+```python
+from sqlmodel import Session
+from app.database import engine
+from app.services.pdf_service import PDFService
+
+with Session(engine) as session:
+    pdf_path = PDFService.render_invoice(session, invoice_id=1)
+    print(f"PDF generado en: {pdf_path}")
+```
+
 ---
 
 ## 4. Datos de semilla
@@ -203,7 +226,8 @@ pytest -v
 ## 6. Lo que viene (próximas fases)
 
 - ✅ **Fase 3**: Facturación mensual con IVA/IRPF correcto (Invoice, InvoiceLine, InvoiceService)
-- **Fase 4**: Generación de PDF de facturas
+- ✅ **Fase 4**: PDF de factura (PDFService.render_invoice)
+- **Fase 5**: Registro de pagos
 - **Fase 5**: Registro de pagos
 - **Fase 6**: Gastos del inmueble
 - **Fase 7**: Conciliación bancaria (importar CSV)

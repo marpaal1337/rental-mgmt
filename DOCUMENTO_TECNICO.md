@@ -35,7 +35,8 @@ rental-mgmt/
     ├── services/
         ├── index_update_service.py
         ├── invoice_service.py
-        └── lease_service.py
+        ├── lease_service.py
+        └── pdf_service.py
     ├── config.py
     ├── database.py
     ├── main.py
@@ -44,6 +45,8 @@ rental-mgmt/
     ├── db/
         └── rental.db
     ├── invoices/
+        ├── 2024/
+            └── 06/
 ├── scripts/
     └── generate_docs.py
 ├── tests/
@@ -51,6 +54,7 @@ rental-mgmt/
     ├── test_index_update_service.py
     ├── test_invoice_service.py
     ├── test_lease_service.py
+    ├── test_pdf_service.py
     └── test_sanity.py
 ├── .env
 ├── .env.example
@@ -257,9 +261,14 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 - **get_active_rent**(`session`, `lease_id`, `target_date`) → `Decimal`
 
+### PDFService
+
+- **render_invoice**(`session`, `invoice_id`) → `Path`
+- **_fmt**(`value`) → `str`
+
 ## 5. Tests
 
-**Total: 14 tests**
+**Total: 17 tests**
 
 ### Fixtures
 
@@ -294,6 +303,14 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_date_before_any_condition_raises` |  |
 | `test_unknown_lease_raises` |  |
 | `test_default_date` |  |
+
+### test_pdf_service.py — TestRenderInvoice
+
+| Test | Descripción |
+|---|---|
+| `test_pdf_generated_for_vivienda` |  |
+| `test_pdf_generated_for_local` |  |
+| `test_invoice_not_found_raises` |  |
 
 ## 6. Migraciones (Alembic)
 
