@@ -18,7 +18,8 @@ rental-mgmt/
     ├── versions/
         ├── 20260531_0155_2e4d256a59c2_create_core_models.py
         ├── 20260531_0226_0928999bac08_add_index_update_table.py
-        └── 20260531_1300_a16509918b31_add_invoice_and_invoice_line_tables.py
+        ├── 20260531_1300_a16509918b31_add_invoice_and_invoice_line_tables.py
+        └── 20260531_1305_bc191700d28c_add_payment_table.py
     ├── env.py
     └── script.py.mako
 ├── app/
@@ -29,6 +30,7 @@ rental-mgmt/
         ├── invoice.py
         ├── lease.py
         ├── owner.py
+        ├── payment.py
         ├── property.py
         ├── tenant.py
         └── unit.py
@@ -36,6 +38,7 @@ rental-mgmt/
         ├── index_update_service.py
         ├── invoice_service.py
         ├── lease_service.py
+        ├── payment_service.py
         └── pdf_service.py
     ├── config.py
     ├── database.py
@@ -54,6 +57,7 @@ rental-mgmt/
     ├── test_index_update_service.py
     ├── test_invoice_service.py
     ├── test_lease_service.py
+    ├── test_payment_service.py
     ├── test_pdf_service.py
     └── test_sanity.py
 ├── .env
@@ -98,6 +102,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 **Relaciones:**
 - `lease` → 1:1 → `invoices`
 - `lines` → 1:N → `invoice`
+- `payments` → 1:N → `invoice`
 
 ### InvoiceLine (`invoice.py`)
 
@@ -204,6 +209,19 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 - `properties` → 1:N → `owner`
 - `leases` → 1:N → `owner`
 
+### Payment (`payment.py`)
+
+| Campo | Tipo | Nulo | FK |
+|---|---|---|---|
+| `invoice_id` | int | No | → `invoice.id` |
+| `amount` | Decimal | No |  |
+| `payment_date` | date | No |  |
+| `method` | str | No |  |
+| `notes` | Optional[str] | Sí |  |
+
+**Relaciones:**
+- `invoice` → 1:1 → `payments`
+
 ### Property (`property.py`)
 
 | Campo | Tipo | Nulo | FK |
@@ -261,6 +279,11 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 - **get_active_rent**(`session`, `lease_id`, `target_date`) → `Decimal`
 
+### PaymentService
+
+- **register**(`session`, `invoice_id`, `amount`, `payment_date`, `method`, `notes`) → `Payment`
+- **_update_invoice_status**(`session`, `invoice`) → `None`
+
 ### PDFService
 
 - **render_invoice**(`session`, `invoice_id`) → `Path`
@@ -268,7 +291,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 17 tests**
+**Total: 23 tests**
 
 ### Fixtures
 
@@ -304,6 +327,17 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_unknown_lease_raises` |  |
 | `test_default_date` |  |
 
+### test_payment_service.py — TestRegisterPayment
+
+| Test | Descripción |
+|---|---|
+| `test_full_payment_marks_invoice_paid` |  |
+| `test_partial_payment_marks_invoice_partial` |  |
+| `test_multiple_partial_payments_sum_to_paid` |  |
+| `test_invoice_not_found_raises` |  |
+| `test_zero_amount_raises` |  |
+| `test_custom_method_and_notes` |  |
+
 ### test_pdf_service.py — TestRenderInvoice
 
 | Test | Descripción |
@@ -319,6 +353,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
   - Padre: `2e4d256a`
 - **`a1650991`** → add invoice and invoice_line tables
   - Padre: `0928999b`
+- **`bc191700`** → add payment table
+  - Padre: `a1650991`
 
 ```bash
 alembic upgrade head    # Aplicar pendientes

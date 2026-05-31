@@ -180,6 +180,39 @@ with Session(engine) as session:
     print(f"PDF generado en: {pdf_path}")
 ```
 
+### 3.5 PaymentService.register(invoice_id, amount, date)
+
+Registra un pago sobre una factura y actualiza su estado automáticamente.
+
+**Qué hace**:
+1. Verifica que la factura existe
+2. Crea un registro de pago con importe, fecha y método
+3. Recalcula el estado de la factura:
+   - Si el total pagado ≥ total factura → estado `paid`
+   - Si hay pagos parciales → estado `partial`
+   - Si no hay pagos → estado `draft`
+
+**Métodos de pago**: transferencia, efectivo, bizum, domiciliación, tarjeta, otros.
+
+**Ejemplo**:
+```python
+from datetime import date
+from decimal import Decimal
+from sqlmodel import Session
+from app.database import engine
+from app.services.payment_service import PaymentService
+
+with Session(engine) as session:
+    pago = PaymentService.register(
+        session=session,
+        invoice_id=1,
+        amount=Decimal("850.00"),
+        payment_date=date.today(),
+        method="transferencia",
+    )
+    print(f"Factura estado: {pago.invoice.status}")  # → "paid"
+```
+
 ---
 
 ## 4. Datos de semilla
@@ -227,9 +260,8 @@ pytest -v
 
 - ✅ **Fase 3**: Facturación mensual con IVA/IRPF correcto (Invoice, InvoiceLine, InvoiceService)
 - ✅ **Fase 4**: PDF de factura (PDFService.render_invoice)
-- **Fase 5**: Registro de pagos
-- **Fase 5**: Registro de pagos
-- **Fase 6**: Gastos del inmueble
+- ✅ **Fase 5**: Pagos (Payment, PaymentService.register)
+- **Fase 6**: Gastos
 - **Fase 7**: Conciliación bancaria (importar CSV)
 - **Fase 8**: API REST completa con endpoints CRUD
 - **Fase 9**: Automatización (facturación mensual automática, detección de impagos)

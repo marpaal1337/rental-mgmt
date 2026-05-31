@@ -8,8 +8,8 @@ calidad del código, y **mantener actualizada la documentación**.
 
 ## Estado actual
 
-- **Fase completada**: Fase 4 — PDF de factura
-- **Próxima fase**: Fase 5 — Pagos
+- **Fase completada**: Fase 5 — Pagos
+- **Próxima fase**: Fase 6 — Gastos
 - **Plan director**: `rental-mgmt-plan.md`
 - **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL), Alembic, pytest, ruff
 
@@ -88,8 +88,7 @@ rental-mgmt/
 3. ✅ **Fase 2** — LeaseService + IndexUpdateService (renta vigente, revisiones IPC)
 4. ✅ **Fase 3** — Facturación (Invoice, InvoiceLine, InvoiceService)
 5. ✅ **Fase 4** — PDF de factura
-6. ⬜ **Fase 5** — Pagos
-6. ⬜ **Fase 5** — Pagos
+6. ✅ **Fase 5** — Pagos
 7. ⬜ **Fase 6** — Gastos
 8. ⬜ **Fase 7** — Conciliación bancaria
 9. ⬜ **Fase 8** — API REST completa

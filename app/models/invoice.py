@@ -9,6 +9,7 @@ from app.models.base import AuditMixin
 
 if TYPE_CHECKING:
     from app.models.lease import Lease
+    from app.models.payment import Payment
 
 
 class Invoice(AuditMixin, table=True):
@@ -38,6 +39,7 @@ class Invoice(AuditMixin, table=True):
 
     lease: "Lease" = Relationship(back_populates="invoices")
     lines: List["InvoiceLine"] = Relationship(back_populates="invoice")
+    payments: List["Payment"] = Relationship(back_populates="invoice")
 
 
 class InvoiceLine(AuditMixin, table=True):
