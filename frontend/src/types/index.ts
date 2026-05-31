@@ -168,3 +168,163 @@ export interface ExpenseUpdatePayload {
 export interface InvoiceGeneratePayload {
   period: string
 }
+
+export interface OwnerCreatePayload {
+  name: string
+  document_type: string
+  document_number: string
+  email: string
+  phone: string
+  address?: string | null
+}
+
+export interface OwnerUpdatePayload {
+  name?: string
+  document_type?: string
+  document_number?: string
+  email?: string
+  phone?: string
+  address?: string | null
+}
+
+export interface PropertyCreatePayload {
+  name: string
+  address: string
+  city: string
+  province: string
+  zip_code: string
+  cadastral_ref?: string | null
+  owner_id: number
+}
+
+export interface PropertyUpdatePayload {
+  name?: string
+  address?: string
+  city?: string
+  province?: string
+  zip_code?: string
+  cadastral_ref?: string | null
+  owner_id?: number
+}
+
+export interface UnitCreatePayload {
+  property_id: number
+  name: string
+  unit_type: string
+  area_m2?: number | null
+  is_active?: boolean
+}
+
+export interface UnitUpdatePayload {
+  property_id?: number
+  name?: string
+  unit_type?: string
+  area_m2?: number | null
+  is_active?: boolean
+}
+
+export interface TenantCreatePayload {
+  name: string
+  document_type: string
+  document_number: string
+  email: string
+  phone: string
+}
+
+export interface TenantUpdatePayload {
+  name?: string
+  document_type?: string
+  document_number?: string
+  email?: string
+  phone?: string
+}
+
+export interface RentCondition {
+  id: number
+  lease_id: number
+  start_date: string
+  monthly_rent: string
+  notes: string | null
+}
+
+export interface RentConditionCreatePayload {
+  start_date: string
+  monthly_rent: string
+  notes?: string | null
+}
+
+export interface TaxProfile {
+  id: number
+  lease_id: number
+  vat_rate: string
+  irpf_rate: string
+  vat_exempt: boolean
+  withholding_applies: boolean
+}
+
+export interface TaxProfileUpdatePayload {
+  vat_rate?: string
+  irpf_rate?: string
+  vat_exempt?: boolean
+  withholding_applies?: boolean
+}
+
+export interface Deposit {
+  id: number
+  lease_id: number
+  amount: string
+  deposit_date: string
+  agency: string
+  return_date: string | null
+}
+
+export interface DepositUpdatePayload {
+  amount?: string
+  deposit_date?: string
+  agency?: string
+  return_date?: string | null
+}
+
+export interface IndexUpdate {
+  id: number
+  lease_id: number
+  application_date: string
+  previous_rent: string
+  new_rent: string
+  index_rate: string
+  index_name: string
+  notes: string | null
+}
+
+export interface BankMovement {
+  id: number
+  entry_date: string
+  value_date: string | null
+  amount: string
+  concept: string
+  iban_origin: string | null
+  reference: string | null
+  status: string
+}
+
+export interface Reconciliation {
+  id: number
+  bank_movement_id: number
+  payment_id: number
+  score: string
+  confirmed_at: string | null
+  notes: string | null
+  bank_movement?: BankMovement
+  payment?: Payment
+}
+
+export interface ExpenseSummary {
+  property_id: number
+  year: number
+  total_income: string
+  total_expenses: string
+  deductible_expenses: string
+  non_deductible_expenses: string
+  net_profitability: string
+  by_category: Record<string, string>
+}

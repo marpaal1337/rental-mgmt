@@ -5,6 +5,11 @@ import {
   FileTextOutlined,
   HomeOutlined,
   MoneyCollectOutlined,
+  TeamOutlined,
+  ShopOutlined,
+  AppstoreOutlined,
+  UserOutlined,
+  ReconciliationOutlined,
 } from '@ant-design/icons'
 import { Layout, Menu, Typography } from 'antd'
 import { Outlet, useNavigate } from 'react-router-dom'
@@ -17,6 +22,18 @@ const menuItems = [
   { key: '/invoices', icon: <AuditOutlined />, label: 'Facturas' },
   { key: '/payments', icon: <MoneyCollectOutlined />, label: 'Pagos' },
   { key: '/expenses', icon: <BankOutlined />, label: 'Gastos' },
+  {
+    key: 'master',
+    icon: <TeamOutlined />,
+    label: 'Maestros',
+    children: [
+      { key: '/owners', icon: <UserOutlined />, label: 'Propietarios' },
+      { key: '/tenants', icon: <TeamOutlined />, label: 'Inquilinos' },
+      { key: '/properties', icon: <ShopOutlined />, label: 'Propiedades' },
+      { key: '/units', icon: <AppstoreOutlined />, label: 'Unidades' },
+    ],
+  },
+  { key: '/reconciliation', icon: <ReconciliationOutlined />, label: 'Conciliación' },
 ]
 
 export default function AppLayout() {

@@ -79,5 +79,102 @@ class PaymentUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+class OwnerCreate(BaseModel):
+    name: str
+    document_type: str
+    document_number: str
+    email: str
+    phone: str
+    address: Optional[str] = None
+
+
+class OwnerUpdate(BaseModel):
+    name: Optional[str] = None
+    document_type: Optional[str] = None
+    document_number: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
+
+class PropertyCreate(BaseModel):
+    name: str
+    address: str
+    city: str
+    province: str
+    zip_code: str
+    cadastral_ref: Optional[str] = None
+    owner_id: int
+
+
+class PropertyUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    zip_code: Optional[str] = None
+    cadastral_ref: Optional[str] = None
+    owner_id: Optional[int] = None
+
+
+class UnitCreate(BaseModel):
+    property_id: int
+    name: str
+    unit_type: str
+    area_m2: Optional[float] = None
+    is_active: bool = True
+
+
+class UnitUpdate(BaseModel):
+    property_id: Optional[int] = None
+    name: Optional[str] = None
+    unit_type: Optional[str] = None
+    area_m2: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+class TenantCreate(BaseModel):
+    name: str
+    document_type: str
+    document_number: str
+    email: str
+    phone: str
+
+
+class TenantUpdate(BaseModel):
+    name: Optional[str] = None
+    document_type: Optional[str] = None
+    document_number: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class RentConditionCreate(BaseModel):
+    start_date: date
+    monthly_rent: Decimal
+    notes: Optional[str] = None
+
+
+class TaxProfileUpdate(BaseModel):
+    vat_rate: Optional[Decimal] = None
+    irpf_rate: Optional[Decimal] = None
+    vat_exempt: Optional[bool] = None
+    withholding_applies: Optional[bool] = None
+
+
+class DepositCreate(BaseModel):
+    amount: Decimal
+    deposit_date: date
+    agency: str
+    return_date: Optional[date] = None
+
+
+class DepositUpdate(BaseModel):
+    amount: Optional[Decimal] = None
+    deposit_date: Optional[date] = None
+    agency: Optional[str] = None
+    return_date: Optional[date] = None
+
+
 class RentQueryParams(BaseModel):
     date: Optional[date] = None
