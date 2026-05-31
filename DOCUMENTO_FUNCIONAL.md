@@ -262,6 +262,39 @@ Al ejecutar `python -m app.seed` se crean:
 | Lease 2 | Local comercial, 1500 €/mes, IVA 21% + IRPF 19% |
 | Deposits | Fianzas depositadas en IVIMA |
 
+### 3.7 ReconciliationService — Conciliación bancaria
+
+Importa movimientos bancarios desde CSV y los empareja con pagos registrados.
+
+**Importar CSV**:
+```python
+from app.services.bank_adapter import INGBankAdapter
+from app.services.reconciliation_service import ReconciliationService
+
+adapter = INGBankAdapter()
+movements = ReconciliationService.import_csv(session, "extracto.csv", adapter)
+# → lista de BankMovement en estado "unmatched"
+```
+
+**Proponer coincidencias**: busca pagos con mismo importe y fecha cercana (±5 días):
+```python
+recs = ReconciliationService.propose_matches(session, movement_id=1)
+# → lista de Reconciliation propuestas con score 0.0–1.0
+```
+
+**Confirmar una conciliación**:
+```python
+rec = ReconciliationService.confirm_match(session, reconciliation_id=1)
+# → BankMovement pasa a "confirmed"
+```
+
+**Ver movimientos sin conciliar**:
+```python
+pendientes = ReconciliationService.list_unmatched(session)
+```
+
+Se incluye adaptador genérico configurable (`GenericBankAdapter`) y uno específico para ING (`INGBankAdapter`). El sistema nunca auto-confirma matches — siempre requiere revisión manual.
+
 ---
 
 ## 5. Cómo usar el sistema (hoy)
@@ -293,7 +326,7 @@ pytest -v
 - ✅ **Fase 4**: PDF de factura (PDFService.render_invoice)
 - ✅ **Fase 5**: Pagos (Payment, PaymentService.register)
 - ✅ **Fase 6**: Gastos (Expense, ExpenseService)
-- **Fase 7**: Conciliación bancaria (importar CSV)
+- ✅ **Fase 7**: Conciliación bancaria (BankMovement, Reconciliation, ReconciliationService)
 - **Fase 8**: API REST completa con endpoints CRUD
 - **Fase 9**: Automatización (facturación mensual automática, detección de impagos)
 - **Fase 10**: Backups, auditoría, UI opcional

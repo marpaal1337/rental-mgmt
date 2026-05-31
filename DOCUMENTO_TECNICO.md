@@ -20,13 +20,15 @@ rental-mgmt/
         ├── 20260531_0226_0928999bac08_add_index_update_table.py
         ├── 20260531_1300_a16509918b31_add_invoice_and_invoice_line_tables.py
         ├── 20260531_1305_bc191700d28c_add_payment_table.py
-        └── 20260531_1309_e1cd76ded677_add_expense_table.py
+        ├── 20260531_1309_e1cd76ded677_add_expense_table.py
+        └── 20260531_1311_1c44557ef4b6_add_bank_movement_and_reconciliation_.py
     ├── env.py
     └── script.py.mako
 ├── app/
     ├── api/
     ├── jobs/
     ├── models/
+        ├── bank.py
         ├── base.py
         ├── expense.py
         ├── invoice.py
@@ -37,12 +39,14 @@ rental-mgmt/
         ├── tenant.py
         └── unit.py
     ├── services/
+        ├── bank_adapter.py
         ├── expense_service.py
         ├── index_update_service.py
         ├── invoice_service.py
         ├── lease_service.py
         ├── payment_service.py
-        └── pdf_service.py
+        ├── pdf_service.py
+        └── reconciliation_service.py
     ├── config.py
     ├── database.py
     ├── main.py
@@ -63,6 +67,7 @@ rental-mgmt/
     ├── test_lease_service.py
     ├── test_payment_service.py
     ├── test_pdf_service.py
+    ├── test_reconciliation_service.py
     └── test_sanity.py
 ├── .env
 ├── .env.example
@@ -88,6 +93,36 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 - `created_at`: DateTime, default UTC now
 - `updated_at`: DateTime, default UTC now
 - `deleted_at`: DateTime | None (soft-delete)
+
+### BankMovement (`bank.py`)
+
+| Campo | Tipo | Nulo | FK |
+|---|---|---|---|
+| `entry_date` | date | No |  |
+| `value_date` | Optional[date] | Sí |  |
+| `amount` | Decimal | No |  |
+| `concept` | str | No |  |
+| `iban_origin` | Optional[str] | Sí |  |
+| `reference` | Optional[str] | Sí |  |
+| `status` | str | No |  |
+| `raw_data` | Optional[str] | Sí |  |
+
+**Relaciones:**
+- `reconciliation` → 1:1 → `bank_movement`
+
+### Reconciliation (`bank.py`)
+
+| Campo | Tipo | Nulo | FK |
+|---|---|---|---|
+| `bank_movement_id` | int | No | → `bank_movement.id` |
+| `payment_id` | int | No | → `payment.id` |
+| `score` | Decimal | No |  |
+| `confirmed_at` | Optional[datetime] | Sí |  |
+| `notes` | Optional[str] | Sí |  |
+
+**Relaciones:**
+- `bank_movement` → 1:1 → `reconciliation`
+- `payment` → 1:1 → `reconciliations`
 
 ### Expense (`expense.py`)
 
@@ -244,6 +279,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 **Relaciones:**
 - `invoice` → 1:1 → `payments`
+- `reconciliations` → 1:N → `payment`
 
 ### Property (`property.py`)
 
@@ -291,6 +327,24 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 4. Servicios
 
+### BankRow
+
+- **__init__**(`entry_date`, `concept`, `amount`, `value_date`, `iban_origin`, `reference`, `raw`) → `None`
+
+### BaseBankAdapter
+
+- **parse**(`file_path`) → `list[BankRow]`
+
+### GenericBankAdapter
+
+- **__init__**(`delimiter`, `date_format`, `encoding`, `skip_rows`, `col_date`, `col_concept`, `col_amount`, `col_iban`, `col_reference`) → `None`
+- **parse**(`file_path`) → `list[BankRow]`
+- **_parse_date**(`raw`) → `date`
+
+### INGBankAdapter
+
+- **__init__**() → `None`
+
 ### ExpenseService
 
 - **register**(`session`, `property_id`, `category`, `amount`, `expense_date`, `lease_id`, `deductible`, `supplier`, `invoice_number`, `notes`) → `Expense`
@@ -319,9 +373,18 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 - **render_invoice**(`session`, `invoice_id`) → `Path`
 - **_fmt**(`value`) → `str`
 
+### ReconciliationService
+
+- **import_csv**(`session`, `file_path`, `adapter`) → `list[BankMovement]`
+- **propose_matches**(`session`, `bank_movement_id`) → `list[Reconciliation]`
+- **_match_score**(`movement`, `payment`) → `Decimal`
+- **confirm_match**(`session`, `reconciliation_id`) → `Reconciliation`
+- **list_unmatched**(`session`) → `list[BankMovement]`
+- **list_proposed**(`session`) → `list[BankMovement]`
+
 ## 5. Tests
 
-**Total: 36 tests**
+**Total: 45 tests**
 
 ### Fixtures
 
@@ -404,6 +467,35 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_pdf_generated_for_local` |  |
 | `test_invoice_not_found_raises` |  |
 
+### test_reconciliation_service.py — TestImportCSV
+
+| Test | Descripción |
+|---|---|
+| `test_import_creates_movements` |  |
+| `test_import_with_iban` |  |
+
+### test_reconciliation_service.py — TestProposeMatches
+
+| Test | Descripción |
+|---|---|
+| `test_exact_match_found` |  |
+| `test_no_match_different_amount` |  |
+| `test_movement_not_found_raises` |  |
+| `test_movement_already_confirmed_raises` |  |
+
+### test_reconciliation_service.py — TestConfirmMatch
+
+| Test | Descripción |
+|---|---|
+| `test_confirm_updates_status` |  |
+| `test_not_found_raises` |  |
+
+### test_reconciliation_service.py — TestListUnmatched
+
+| Test | Descripción |
+|---|---|
+| `test_list_unmatched` |  |
+
 ## 6. Migraciones (Alembic)
 
 - **`2e4d256a`** → create core models
@@ -415,6 +507,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
   - Padre: `a1650991`
 - **`e1cd76de`** → add expense table
   - Padre: `bc191700`
+- **`1c44557e`** → add bank_movement and reconciliation tables
+  - Padre: `e1cd76de`
 
 ```bash
 alembic upgrade head    # Aplicar pendientes

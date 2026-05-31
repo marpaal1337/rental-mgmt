@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Column, Numeric
 from sqlmodel import Field, Relationship
@@ -8,6 +8,7 @@ from sqlmodel import Field, Relationship
 from app.models.base import AuditMixin
 
 if TYPE_CHECKING:
+    from app.models.bank import Reconciliation
     from app.models.invoice import Invoice
 
 
@@ -24,3 +25,6 @@ class Payment(AuditMixin, table=True):
     notes: Optional[str] = Field(default=None, max_length=1000)
 
     invoice: "Invoice" = Relationship(back_populates="payments")
+    reconciliations: List["Reconciliation"] = Relationship(
+        back_populates="payment"
+    )
