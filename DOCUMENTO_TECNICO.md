@@ -35,9 +35,13 @@ rental-mgmt/
         ├── deps.py
         └── schemas.py
     ├── jobs/
+        ├── daily_overdue.py
+        ├── monthly_invoicing.py
+        └── scheduler.py
     ├── models/
         ├── bank.py
         ├── base.py
+        ├── event_log.py
         ├── expense.py
         ├── invoice.py
         ├── lease.py
@@ -73,6 +77,7 @@ rental-mgmt/
     ├── test_expense_service.py
     ├── test_index_update_service.py
     ├── test_invoice_service.py
+    ├── test_jobs.py
     ├── test_lease_service.py
     ├── test_payment_service.py
     ├── test_pdf_service.py
@@ -132,6 +137,15 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 **Relaciones:**
 - `bank_movement` → 1:1 → `reconciliation`
 - `payment` → 1:1 → `reconciliations`
+
+### EventLog (`event_log.py`)
+
+| Campo | Tipo | Nulo | FK |
+|---|---|---|---|
+| `event_type` | str | No |  |
+| `description` | str | No |  |
+| `details` | Optional[str] | Sí |  |
+| `level` | str | No |  |
 
 ### Expense (`expense.py`)
 
@@ -393,7 +407,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 57 tests**
+**Total: 63 tests**
 
 ### Fixtures
 
@@ -488,6 +502,22 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_idempotent_does_not_duplicate` |  |
 | `test_leases_without_tax_profile_raises` |  |
 | `test_inactive_lease_ignored` |  |
+
+### test_jobs.py — TestGenerateMonthlyInvoices
+
+| Test | Descripción |
+|---|---|
+| `test_produces_event_log_on_success` |  |
+| `test_logs_error_on_failure` |  |
+
+### test_jobs.py — TestDetectOverdue
+
+| Test | Descripción |
+|---|---|
+| `test_detects_old_unpaid_invoices` |  |
+| `test_recent_invoice_not_overdue` |  |
+| `test_paid_invoice_not_overdue` |  |
+| `test_logs_events_when_overdue_found` |  |
 
 ### test_lease_service.py — TestGetActiveRent
 

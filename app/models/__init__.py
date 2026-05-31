@@ -1,5 +1,6 @@
 from app.models.bank import BankMovement, Reconciliation
 from app.models.base import AuditMixin
+from app.models.event_log import EventLog
 from app.models.expense import EXPENSE_CATEGORIES, Expense
 from app.models.invoice import Invoice, InvoiceLine
 from app.models.lease import Deposit, IndexUpdate, Lease, RentCondition, TaxProfile
@@ -13,6 +14,7 @@ __all__ = [
     "AuditMixin",
     "BankMovement",
     "Deposit",
+    "EventLog",
     "EXPENSE_CATEGORIES",
     "Expense",
     "IndexUpdate",

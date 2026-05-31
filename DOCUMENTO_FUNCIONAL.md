@@ -356,5 +356,5 @@ pytest -v
 - ✅ **Fase 6**: Gastos (Expense, ExpenseService)
 - ✅ **Fase 7**: Conciliación bancaria (BankMovement, Reconciliation, ReconciliationService)
 - ✅ **Fase 8**: API REST completa (20+ endpoints, auth API key) con endpoints CRUD
-- **Fase 9**: Automatización (facturación mensual automática, detección de impagos)
+- ✅ **Fase 9**: Automatización (APScheduler, facturación mensual automática, detección de impagos, EventLog)
 - **Fase 10**: Backups, auditoría, UI opcional
