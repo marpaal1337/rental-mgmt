@@ -14,6 +14,7 @@ calidad del código, y **mantener actualizada la documentación**.
 - **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL), Alembic, reportlab, pytest, ruff
 - **Frontend**: Vite + React 19 + TypeScript + Ant Design + React Router + Axios
 - **E2E**: Playwright (chromium)
+- **Tests**: 122 tests (57 API, 65 services/sanity)
 
 ## Documentación del proyecto
 
@@ -54,6 +55,29 @@ complete una fase, debo actualizar:
 - Cualquier convenio o regla que haya surgido durante la implementación
 - Cualquier decisión arquitectónica relevante
 
+## Windows installer
+
+El proyecto soporta empaquetado para Windows mediante dos sistemas:
+
+| Sistema | Formato | Archivo | Cómo se compila en Windows |
+|---|---|---|---|
+| InnoSetup | `.exe` (instalador clásico) | `build/innosetup.iss` | `iscc build\innosetup.iss` |
+| WiX Toolset | `.msi` (instalador corporativo) | `build/wix/rental-mgmt.wxs` | `heat.exe` → `candle.exe` → `light.exe` |
+
+Script unificado: `scripts/build_windows_installer.py`
+```
+python scripts/build_windows_installer.py           # Ambos instaladores
+python scripts/build_windows_installer.py --innosetup # Solo .exe
+python scripts/build_windows_installer.py --wix       # Solo .msi
+```
+
+Flujo: compila frontend → PyInstaller (onedir) → empaqueta en instalador.
+
+### Bugs corregidos
+
+- **IndexUpdateService.commit**: el servicio usaba `session.flush()` en lugar de `session.commit()`. La corrección fue añadir `session.commit()` + `session.refresh()` en el router (`leases.py`), no en el servicio. Esto mantiene el convenio de que los servicios solo llaman a `flush()` y los routers gestionan `commit()`.
+- **EventLog table**: existe en el modelo pero no tiene migración Alembic. `seed.py --clean` falla al intentar borrarla. Se omitió manualmente en el seed.
+
 ## Convenios del proyecto
 
 - **Lógica en services/**: toda la lógica de negocio va en `app/services/`, nunca en modelos ni routers
@@ -90,7 +114,10 @@ rental-mgmt/
 │   └── invoices/      → PDFs generados
 ├── tests/             → Pytest tests
 ├── alembic/           → Migraciones
-├── scripts/           → Scripts auxiliares (doc generation, etc.)
+├── scripts/           → Scripts auxiliares (doc generation, instalador, etc.)
+├── build/
+│   ├── innosetup.iss  → InnoSetup .exe installer config
+│   └── wix/           → WiX .msi installer config
 ├── DOCUMENTO_FUNCIONAL.md
 ├── DOCUMENTO_TECNICO.md
 └── AGENTS.md          ← Este archivo

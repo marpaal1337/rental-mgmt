@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session
 
 from app.database import engine
 from app.models.bank import BankMovement, Reconciliation
@@ -342,19 +342,19 @@ def seed():
         session.commit()
 
     print("✅ Seed completed successfully!")
-    print(f"   Owners: 2")
-    print(f"   Properties: 2")
-    print(f"   Units: 3")
-    print(f"   Tenants: 2")
-    print(f"   Leases: 2 (1 active with IPC update, 1 active local)")
-    print(f"   Rent conditions: 3")
-    print(f"   Tax profiles: 2")
-    print(f"   Deposits: 2")
-    print(f"   Index updates: 1")
-    print(f"   Invoices: 6 (2 paid, 1 partial, 3 draft)")
-    print(f"   Payments: 3")
-    print(f"   Expenses: 8")
-    print(f"   Bank movements: 3 (all unmatched)")
+    print("   Owners: 2")
+    print("   Properties: 2")
+    print("   Units: 3")
+    print("   Tenants: 2")
+    print("   Leases: 2 (1 active with IPC update, 1 active local)")
+    print("   Rent conditions: 3")
+    print("   Tax profiles: 2")
+    print("   Deposits: 2")
+    print("   Index updates: 1")
+    print("   Invoices: 6 (2 paid, 1 partial, 3 draft)")
+    print("   Payments: 3")
+    print("   Expenses: 8")
+    print("   Bank movements: 3 (all unmatched)")
 
 
 if __name__ == "__main__":

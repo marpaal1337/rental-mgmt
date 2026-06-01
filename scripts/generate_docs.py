@@ -359,7 +359,24 @@ def generate() -> str:
     a("ruff check --fix .         # Auto-fix")
     a("python -m app.seed         # Cargar datos de prueba")
     a("python scripts/generate_docs.py  # Regenerar este documento")
+    a("python build.py            # Build portable EXE (PyInstaller)")
+    a("python scripts/build_windows_installer.py  # Build Windows installer")
     a("```")
+    a("")
+    a("# Windows Installer")
+    a("")
+    a("El proyecto soporta dos sistemas de empaquetado para Windows.")
+    a("")
+    a("### InnoSetup (.exe)")
+    a("")
+    a("Archivo: `build/innosetup.iss`")
+    a("```bash")
+    a("iscc build\\innosetup.iss")
+    a("```")
+    a("")
+    a("### WiX Toolset (.msi)")
+    a("")
+    a("Archivo: `build/wix/rental-mgmt.wxs`")
     a("")
 
     return "\n".join(lines)
@@ -370,7 +387,7 @@ def _tree(root: Path, prefix: str, max_depth: int = 3) -> list[str]:
     lines = [f"{prefix}/"]
 
     # Directories and files to include
-    include_dirs = {"app", "tests", "alembic", "scripts", "data"}
+    include_dirs = {"app", "tests", "alembic", "scripts", "data", "build"}
     exclude_dirs = {"__pycache__", ".git", ".ruff_cache", ".pytest_cache", ".opencode"}
     exclude_files = {"__init__.py", ".gitkeep"}
 

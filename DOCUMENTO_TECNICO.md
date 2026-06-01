@@ -7,8 +7,8 @@
 | Capa | Tecnología |
 |---|---|
 | Runtime | Python ≥ 3.11 |
-| Dependencias principales | , fastapi, uvicorn[standard], sqlmodel, alembic, apscheduler, reportlab, python-dotenv, python-multipart, pytest, pytest-asyncio, ruff |
-| Dependencias de desarrollo | pytest, pytest-asyncio, ruff |
+| Dependencias principales | , fastapi, uvicorn[standard], sqlmodel, alembic, apscheduler, reportlab, python-dotenv, python-multipart, pywebview, pytest, pytest-asyncio, ruff, pyinstaller |
+| Dependencias de desarrollo | pytest, pytest-asyncio, ruff, pyinstaller |
 
 ## 2. Estructura del proyecto
 
@@ -30,9 +30,13 @@ rental-mgmt/
             ├── expenses.py
             ├── invoices.py
             ├── leases.py
+            ├── owners.py
             ├── payments.py
+            ├── properties.py
             ├── reconciliation.py
-            └── stats.py
+            ├── stats.py
+            ├── tenants.py
+            └── units.py
         ├── deps.py
         └── schemas.py
     ├── jobs/
@@ -66,6 +70,21 @@ rental-mgmt/
     ├── database.py
     ├── main.py
     └── seed.py
+├── build/
+    ├── rental-mgmt/
+        ├── localpycs/
+        ├── Analysis-00.toc
+        ├── EXE-00.toc
+        ├── PKG-00.toc
+        ├── PYZ-00.pyz
+        ├── PYZ-00.toc
+        ├── base_library.zip
+        ├── rental-mgmt.pkg
+        ├── warn-rental-mgmt.txt
+        └── xref-rental-mgmt.html
+    ├── wix/
+        └── rental-mgmt.wxs
+    └── innosetup.iss
 ├── data/
     ├── backups/
         ├── rental_20260531_115909.db
@@ -77,14 +96,31 @@ rental-mgmt/
         ├── rental_20260531_121611.db
         ├── rental_20260531_122111.db
         ├── rental_20260531_123442.db
-        └── rental_20260531_123449.db
+        ├── rental_20260531_123449.db
+        ├── rental_20260531_123730.db
+        ├── rental_20260531_123833.db
+        ├── rental_20260531_171223.db
+        ├── rental_20260531_171238.db
+        ├── rental_20260531_202545.db
+        ├── rental_20260531_202622.db
+        ├── rental_20260531_205231.db
+        ├── rental_20260531_215432.db
+        ├── rental_20260531_220628.db
+        ├── rental_20260531_224948.db
+        ├── rental_20260531_225039.db
+        ├── rental_20260531_225051.db
+        ├── rental_20260531_230950.db
+        ├── rental_20260531_231102.db
+        └── rental_20260531_232724.db
     ├── db/
         └── rental.db
     ├── invoices/
         ├── 2024/
             └── 06/
 ├── scripts/
-    └── generate_docs.py
+    ├── build_windows_installer.py
+    ├── generate_docs.py
+    └── seed.py
 ├── tests/
     ├── conftest.py
     ├── test_api.py
@@ -111,10 +147,13 @@ rental-mgmt/
 ├── README.md
 ├── REVISION_PLAN.md
 ├── alembic.ini
+├── build.py
+├── desktop.py
 ├── docker-compose.yml
 ├── opencode.jsonc
 ├── pyproject.toml
 ├── rental-mgmt-plan.md
+├── rental-mgmt.spec
 └── rental_state_prompt.md
 ```
 
@@ -431,7 +470,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 75 tests**
+**Total: 120 tests**
 
 ### Fixtures
 
@@ -446,6 +485,26 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_no_key_returns_403` |  |
 | `test_invalid_key_returns_403` |  |
 | `test_valid_key_allows_access` |  |
+| `test_owners_needs_auth` |  |
+| `test_tenants_needs_auth` |  |
+| `test_properties_needs_auth` |  |
+| `test_units_needs_auth` |  |
+| `test_stats_needs_auth` |  |
+
+### test_api.py — TestReferenceData
+
+| Test | Descripción |
+|---|---|
+| `test_owners_empty` |  |
+| `test_tenants_empty` |  |
+| `test_properties_empty` |  |
+| `test_units_empty` |  |
+
+### test_api.py — TestStats
+
+| Test | Descripción |
+|---|---|
+| `test_stats_with_no_data` |  |
 
 ### test_api.py — TestLeases
 
@@ -453,6 +512,9 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 |---|---|
 | `test_list_leases` |  |
 | `test_get_lease_not_found` |  |
+| `test_create_and_update_lease` |  |
+| `test_update_nonexistent_lease` |  |
+| `test_update_lease_inactive` |  |
 
 ### test_api.py — TestInvoices
 
@@ -466,6 +528,14 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 |---|---|
 | `test_categories` |  |
 | `test_register_no_property_returns_error` |  |
+| `test_update_nonexistent_expense` |  |
+
+### test_api.py — TestPayments
+
+| Test | Descripción |
+|---|---|
+| `test_update_nonexistent_payment` |  |
+| `test_list_payments` |  |
 
 ### test_api.py — TestReconciliation
 
@@ -473,6 +543,80 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 |---|---|
 | `test_unmatched_returns_empty_list` |  |
 | `test_movements_empty` |  |
+
+### test_api.py — TestOwners
+
+| Test | Descripción |
+|---|---|
+| `test_create_and_get` |  |
+| `test_get_not_found` |  |
+| `test_update` |  |
+| `test_update_not_found` |  |
+| `test_list` |  |
+
+### test_api.py — TestProperties
+
+| Test | Descripción |
+|---|---|
+| `test_create_and_get` |  |
+| `test_get_not_found` |  |
+| `test_update` |  |
+| `test_update_not_found` |  |
+| `test_list` |  |
+
+### test_api.py — TestUnits
+
+| Test | Descripción |
+|---|---|
+| `test_create_and_get` |  |
+| `test_get_not_found` |  |
+| `test_update` |  |
+| `test_update_not_found` |  |
+| `test_list` |  |
+
+### test_api.py — TestTenants
+
+| Test | Descripción |
+|---|---|
+| `test_create_and_get` |  |
+| `test_get_not_found` |  |
+| `test_update` |  |
+| `test_update_not_found` |  |
+| `test_list` |  |
+
+### test_api.py — TestRentConditions
+
+| Test | Descripción |
+|---|---|
+| `test_create_and_list` |  |
+| `test_list_on_nonexistent_lease` |  |
+
+### test_api.py — TestTaxProfile
+
+| Test | Descripción |
+|---|---|
+| `test_upsert_and_get` |  |
+| `test_get_not_found` |  |
+
+### test_api.py — TestDeposit
+
+| Test | Descripción |
+|---|---|
+| `test_upsert_and_get` |  |
+| `test_get_not_found` |  |
+
+### test_api.py — TestIndexUpdates
+
+| Test | Descripción |
+|---|---|
+| `test_list_empty_and_apply` |  |
+| `test_apply_no_rent_condition` |  |
+
+### test_api.py — TestExpenseSummary
+
+| Test | Descripción |
+|---|---|
+| `test_summary_no_property` |  |
 
 ### test_api.py — TestHealth
 
@@ -677,4 +821,21 @@ ruff check .               # Lint
 ruff check --fix .         # Auto-fix
 python -m app.seed         # Cargar datos de prueba
 python scripts/generate_docs.py  # Regenerar este documento
+python build.py            # Build portable EXE (PyInstaller)
+python scripts/build_windows_installer.py  # Build Windows installer
 ```
+
+# Windows Installer
+
+El proyecto soporta dos sistemas de empaquetado para Windows.
+
+### InnoSetup (.exe)
+
+Archivo: `build/innosetup.iss`
+```bash
+iscc build\innosetup.iss
+```
+
+### WiX Toolset (.msi)
+
+Archivo: `build/wix/rental-mgmt.wxs`
