@@ -1,6 +1,7 @@
 import {
   AuditOutlined,
   BankOutlined,
+  BookOutlined,
   DashboardOutlined,
   FileTextOutlined,
   HomeOutlined,
@@ -18,6 +19,7 @@ const { Sider, Content, Header } = Layout
 
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+  { key: '/tutorial', icon: <BookOutlined />, label: 'Tutorial' },
   { key: '/leases', icon: <FileTextOutlined />, label: 'Contratos' },
   { key: '/invoices', icon: <AuditOutlined />, label: 'Facturas' },
   { key: '/payments', icon: <MoneyCollectOutlined />, label: 'Pagos' },

@@ -1,9 +1,11 @@
 import { Button, Card, Col, Collapse, Descriptions, Empty, message, Row, Select, Space, Table, Tag, Typography, Spin, Statistic } from 'antd'
 import { PlusOutlined, EditOutlined, BarChartOutlined } from '@ant-design/icons'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchExpenses, fetchExpenseSummary, fetchProperties } from '../api/endpoints'
 import ExpenseForm from '../components/ExpenseForm'
-import type { Expense, ExpenseSummary, Property } from '../types'
+import { useFetch } from '../hooks/useFetch'
+import type { Expense, ExpenseSummary } from '../types'
+import { fmtMoney } from '../utils/format'
 
 const categoryLabels: Record<string, string> = {
   community: 'Comunidad',
@@ -22,40 +24,45 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Expense | null>(null)
-  const [properties, setProperties] = useState<Property[]>([])
   const [selectedProperty, setSelectedProperty] = useState<number | null>(null)
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [summary, setSummary] = useState<ExpenseSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
+  const initRef = useRef(false)
+  const mountedRef = useRef(true)
+
+  const { data: properties } = useFetch(() => fetchProperties())
 
   const load = useCallback((propertyId: number, year?: number) => {
-    setLoading(true)
     fetchExpenses(propertyId, year)
-      .then(setExpenses)
-      .catch(() => { setExpenses([]); message.error('Error al cargar gastos') })
-      .finally(() => setLoading(false))
+      .then((d) => { if (mountedRef.current) setExpenses(d) })
+      .catch(() => { if (mountedRef.current) { setExpenses([]); message.error('Error al cargar gastos') } })
+      .finally(() => { if (mountedRef.current) setLoading(false) })
   }, [])
 
   const loadSummary = useCallback((propertyId: number, year: number) => {
     setSummaryLoading(true)
     fetchExpenseSummary(propertyId, year)
-      .then(setSummary)
-      .catch(() => setSummary(null))
-      .finally(() => setSummaryLoading(false))
+      .then((d) => { if (mountedRef.current) setSummary(d) })
+      .catch(() => { if (mountedRef.current) setSummary(null) })
+      .finally(() => { if (mountedRef.current) setSummaryLoading(false) })
   }, [])
 
   useEffect(() => {
-    fetchProperties().then((p) => {
-      setProperties(p)
-      if (p.length > 0) {
-        const firstId = p[0].id
-        setSelectedProperty(firstId)
-        load(firstId, selectedYear)
-      } else {
-        setLoading(false)
-      }
-    }).catch(() => message.error('Error al cargar propiedades'))
-  }, [])
+    mountedRef.current = true
+    if (properties && properties.length > 0 && !initRef.current) {
+      initRef.current = true
+      const firstId = properties[0].id
+      setSelectedProperty(firstId)
+    }
+    return () => { mountedRef.current = false }
+  }, [properties])
+
+  useEffect(() => {
+    if (selectedProperty !== null && !initRef.current) {
+      load(selectedProperty, selectedYear)
+    }
+  }, [selectedProperty])
 
   const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
@@ -69,7 +76,7 @@ export default function Expenses() {
       title: 'Importe',
       dataIndex: 'amount',
       key: 'amount',
-      render: (v: string) => `${parseFloat(v).toFixed(2)} €`,
+      render: (v: string) => fmtMoney(v),
     },
     { title: 'Fecha', dataIndex: 'expense_date', key: 'expense_date' },
     {
@@ -122,7 +129,7 @@ export default function Expenses() {
               setSelectedProperty(v)
               load(v, selectedYear)
             }}
-            options={properties.map((p) => ({ label: p.name, value: p.id }))}
+            options={(properties ?? []).map((p) => ({ label: p.name, value: p.id }))}
             style={{ width: 240 }}
           />
         </Space>
@@ -155,14 +162,14 @@ export default function Expenses() {
           children: (
             <>
               <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                <Col xs={12} sm={6}><Card><Statistic title="Ingresos" value={parseFloat(summary.total_income).toFixed(2)} suffix="€" /></Card></Col>
-                <Col xs={12} sm={6}><Card><Statistic title="Gastos" value={parseFloat(summary.total_expenses).toFixed(2)} suffix="€" /></Card></Col>
-                <Col xs={12} sm={6}><Card><Statistic title="Deducibles" value={parseFloat(summary.deductible_expenses).toFixed(2)} suffix="€" /></Card></Col>
-                <Col xs={12} sm={6}><Card><Statistic title="Rentabilidad neta" value={parseFloat(summary.net_profitability).toFixed(2)} suffix="€" valueStyle={{ color: parseFloat(summary.net_profitability) >= 0 ? '#3f8600' : '#cf1322' }} /></Card></Col>
+                <Col xs={12} sm={6}><Card><Statistic title="Ingresos" value={fmtMoney(summary.total_income)} /></Card></Col>
+                <Col xs={12} sm={6}><Card><Statistic title="Gastos" value={fmtMoney(summary.total_expenses)} /></Card></Col>
+                <Col xs={12} sm={6}><Card><Statistic title="Deducibles" value={fmtMoney(summary.deductible_expenses)} /></Card></Col>
+                <Col xs={12} sm={6}><Card><Statistic title="Rentabilidad neta" value={fmtMoney(summary.net_profitability)} valueStyle={{ color: parseFloat(summary.net_profitability) >= 0 ? '#3f8600' : '#cf1322' }} /></Card></Col>
               </Row>
               <Descriptions title="Por categoría" column={2} size="small" bordered>
                 {Object.entries(summary.by_category).map(([cat, amount]) => (
-                  <Descriptions.Item key={cat} label={cat}>{parseFloat(amount).toFixed(2)} €</Descriptions.Item>
+                  <Descriptions.Item key={cat} label={cat}>{fmtMoney(amount)}</Descriptions.Item>
                 ))}
               </Descriptions>
             </>

@@ -1,9 +1,10 @@
 import { Button, Descriptions, Empty, Modal, Space, Table, Tag, Typography, Spin, message } from 'antd'
 import { DownloadOutlined, PlusOutlined } from '@ant-design/icons'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { downloadInvoicePdf, fetchInvoice, fetchInvoices } from '../api/endpoints'
 import InvoiceGenerateForm from '../components/InvoiceGenerateForm'
 import type { Invoice } from '../types'
+import { fmtMoney } from '../utils/format'
 
 const statusColors: Record<string, string> = {
   draft: 'default',
@@ -26,24 +27,37 @@ export default function Invoices() {
   const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
-  const load = () => {
-    setLoading(true)
-    fetchInvoices().then(setInvoices).catch(() => message.error('Error al cargar facturas')).finally(() => setLoading(false))
-  }
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   useEffect(() => {
-    fetchInvoices().then(setInvoices).catch(() => message.error('Error al cargar facturas')).finally(() => setLoading(false))
+    const m = mountedRef
+    m.current = true
+    fetchInvoices()
+      .then((d) => { if (m.current) setInvoices(d) })
+      .catch(() => { if (m.current) message.error('Error al cargar facturas') })
+      .finally(() => { if (m.current) setLoading(false) })
+    return () => { m.current = false }
+  }, [])
+
+  const load = useCallback(() => {
+    fetchInvoices()
+      .then((d) => { if (mountedRef.current) setInvoices(d) })
+      .catch(() => { if (mountedRef.current) message.error('Error al cargar facturas') })
   }, [])
 
   const openDetail = useCallback(async (invoiceId: number) => {
     setDetailLoading(true)
     try {
       const inv = await fetchInvoice(invoiceId)
-      setDetailInvoice(inv)
+      if (mountedRef.current) setDetailInvoice(inv)
     } catch {
-      message.error('Error al cargar detalle')
+      if (mountedRef.current) message.error('Error al cargar detalle')
     } finally {
-      setDetailLoading(false)
+      if (mountedRef.current) setDetailLoading(false)
     }
   }, [])
 
@@ -54,7 +68,7 @@ export default function Invoices() {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      render: (v: string) => `${parseFloat(v).toFixed(2)} €`,
+      render: (v: string) => fmtMoney(v),
     },
     {
       title: 'Estado',
@@ -83,11 +97,11 @@ export default function Invoices() {
 
   const lineColumns = useMemo(() => [
     { title: 'Concepto', dataIndex: 'concept', key: 'concept' },
-    { title: 'Base', dataIndex: 'base_amount', key: 'base_amount', render: (v: string) => `${parseFloat(v).toFixed(2)} €` },
+    { title: 'Base', dataIndex: 'base_amount', key: 'base_amount', render: (v: string) => fmtMoney(v) },
     { title: 'IVA %', dataIndex: 'vat_rate', key: 'vat_rate', render: (v: string) => `${parseFloat(v).toFixed(2)}%` },
-    { title: 'IVA', dataIndex: 'vat_amount', key: 'vat_amount', render: (v: string) => `${parseFloat(v).toFixed(2)} €` },
+    { title: 'IVA', dataIndex: 'vat_amount', key: 'vat_amount', render: (v: string) => fmtMoney(v) },
     { title: 'IRPF %', dataIndex: 'irpf_rate', key: 'irpf_rate', render: (v: string) => `${parseFloat(v).toFixed(2)}%` },
-    { title: 'Ret. IRPF', dataIndex: 'irpf_withholding', key: 'irpf_withholding', render: (v: string) => `${parseFloat(v).toFixed(2)} €` },
+    { title: 'Ret. IRPF', dataIndex: 'irpf_withholding', key: 'irpf_withholding', render: (v: string) => fmtMoney(v) },
   ], [])
 
   return (
@@ -127,7 +141,7 @@ export default function Invoices() {
                 <Tag color={statusColors[detailInvoice.status] ?? 'default'}>{statusLabels[detailInvoice.status] ?? detailInvoice.status}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Emisión">{detailInvoice.issue_date}</Descriptions.Item>
-              <Descriptions.Item label="Total">{parseFloat(detailInvoice.total).toFixed(2)} €</Descriptions.Item>
+              <Descriptions.Item label="Total">{fmtMoney(detailInvoice.total)}</Descriptions.Item>
               {detailInvoice.notes && <Descriptions.Item label="Notas" span={2}>{detailInvoice.notes}</Descriptions.Item>}
             </Descriptions>
             <Typography.Text strong>Líneas</Typography.Text>

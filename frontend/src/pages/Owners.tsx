@@ -1,26 +1,17 @@
-import { Button, Empty, Space, Table, Typography, Spin, message } from 'antd'
+import { Button, Empty, Space, Table, Typography, Spin } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { fetchOwners } from '../api/endpoints'
 import OwnerForm from '../components/OwnerForm'
+import { useFetch } from '../hooks/useFetch'
 import type { Owner } from '../types'
 
 const emptyText = () => <Empty description="No hay propietarios" />
 
 export default function Owners() {
-  const [owners, setOwners] = useState<Owner[]>([])
-  const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Owner | null>(null)
-
-  const load = () => {
-    setLoading(true)
-    fetchOwners().then(setOwners).catch(() => message.error('Error al cargar propietarios')).finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    fetchOwners().then(setOwners).catch(() => message.error('Error al cargar propietarios')).finally(() => setLoading(false))
-  }, [])
+  const { data: owners, loading, load } = useFetch(() => fetchOwners())
 
   const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
@@ -58,7 +49,7 @@ export default function Owners() {
         </Space>
       </Typography.Title>
       <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={owners} pagination={false} locale={{ emptyText }} />
+        <Table rowKey="id" columns={columns} dataSource={owners ?? []} pagination={false} locale={{ emptyText }} />
       </Spin>
       <OwnerForm
         open={formOpen}

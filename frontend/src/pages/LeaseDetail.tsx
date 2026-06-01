@@ -3,7 +3,7 @@ import {
   message, Modal, Spin, Switch, Table, Tabs, Tag, Typography,
 } from 'antd'
 import dayjs from 'dayjs'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   applyIndex, createRentCondition, fetchDeposit, fetchIndexUpdates,
@@ -12,6 +12,7 @@ import {
 import type {
   Deposit, DepositUpdatePayload, IndexUpdate, Lease, RentCondition, TaxProfile, TaxProfileUpdatePayload,
 } from '../types'
+import { fmtMoney } from '../utils/format'
 
 const emptyText = () => <Empty description="Sin datos" />
 
@@ -19,6 +20,7 @@ export default function LeaseDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const leaseId = Number(id)
+  const mountedRef = useRef(true)
 
   const [lease, setLease] = useState<Lease | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,45 +47,45 @@ export default function LeaseDetail() {
   const [iuForm] = Form.useForm()
   const [iuSaving, setIuSaving] = useState(false)
 
-  const loadRc = () => {
-    fetchRentConditions(leaseId).then(setRentConditions).catch(() => message.error('Error al cargar condiciones de renta')).finally(() => setRcLoading(false))
-  }
-
-  const loadIu = () => {
-    fetchIndexUpdates(leaseId).then(setIndexUpdates).catch(() => message.error('Error al cargar revisiones IPC')).finally(() => setIuLoading(false))
-  }
-
   useEffect(() => {
-    fetchLease(leaseId).then(setLease).catch(() => message.error('Error al cargar el contrato')).finally(() => setLoading(false))
-    fetchRentConditions(leaseId).then(setRentConditions).catch(() => message.error('Error al cargar condiciones de renta')).finally(() => setRcLoading(false))
-    fetchIndexUpdates(leaseId).then(setIndexUpdates).catch(() => message.error('Error al cargar revisiones IPC')).finally(() => setIuLoading(false))
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
+  const loadRc = useCallback(() => {
+    fetchRentConditions(leaseId)
+      .then((d) => { if (mountedRef.current) setRentConditions(d) })
+      .catch(() => { if (mountedRef.current) message.error('Error al cargar condiciones de renta') })
+      .finally(() => { if (mountedRef.current) setRcLoading(false) })
+  }, [leaseId])
+
+  const loadIu = useCallback(() => {
+    fetchIndexUpdates(leaseId)
+      .then((d) => { if (mountedRef.current) setIndexUpdates(d) })
+      .catch(() => { if (mountedRef.current) message.error('Error al cargar revisiones IPC') })
+      .finally(() => { if (mountedRef.current) setIuLoading(false) })
   }, [leaseId])
 
   useEffect(() => {
-    fetchTaxProfile(leaseId).then((tp) => {
-      setTaxProfile(tp)
-      tpForm.setFieldsValue(tp)
-    }).catch(() => setTaxProfile(null)).finally(() => setTpLoading(false))
-  }, [leaseId])
-
-  useEffect(() => {
-    fetchDeposit(leaseId).then((d) => {
-      setDeposit(d)
-      depForm.setFieldsValue({ ...d, deposit_date: dayjs(d.deposit_date), return_date: d.return_date ? dayjs(d.return_date) : null })
-    }).catch(() => setDeposit(null)).finally(() => setDepLoading(false))
+    const m = mountedRef
+    fetchLease(leaseId).then((d) => { if (m.current) setLease(d) }).catch(() => { if (m.current) message.error('Error al cargar el contrato') }).finally(() => { if (m.current) setLoading(false) })
+    fetchRentConditions(leaseId).then((d) => { if (m.current) setRentConditions(d) }).catch(() => {}).finally(() => { if (m.current) setRcLoading(false) })
+    fetchIndexUpdates(leaseId).then((d) => { if (m.current) setIndexUpdates(d) }).catch(() => {}).finally(() => { if (m.current) setIuLoading(false) })
+    fetchTaxProfile(leaseId).then((tp) => { if (m.current) { setTaxProfile(tp); tpForm.setFieldsValue(tp) } }).catch(() => { if (m.current) setTaxProfile(null) }).finally(() => { if (m.current) setTpLoading(false) })
+    fetchDeposit(leaseId).then((d) => { if (m.current) { setDeposit(d); depForm.setFieldsValue({ ...d, deposit_date: dayjs(d.deposit_date), return_date: d.return_date ? dayjs(d.return_date) : null }) } }).catch(() => { if (m.current) setDeposit(null) }).finally(() => { if (m.current) setDepLoading(false) })
   }, [leaseId])
 
   const rcColumns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     { title: 'Fecha inicio', dataIndex: 'start_date', key: 'start_date' },
-    { title: 'Renta mensual', dataIndex: 'monthly_rent', key: 'monthly_rent', render: (v: string) => `${parseFloat(v).toFixed(2)} €` },
+    { title: 'Renta mensual', dataIndex: 'monthly_rent', key: 'monthly_rent', render: (v: string) => fmtMoney(v) },
     { title: 'Notas', dataIndex: 'notes', key: 'notes', render: (v: string | null) => v ?? '-' },
   ], [])
 
   const iuColumns = useMemo(() => [
     { title: 'Fecha', dataIndex: 'application_date', key: 'application_date' },
-    { title: 'Renta anterior', dataIndex: 'previous_rent', key: 'previous_rent', render: (v: string) => `${parseFloat(v).toFixed(2)} €` },
-    { title: 'Renta nueva', dataIndex: 'new_rent', key: 'new_rent', render: (v: string) => `${parseFloat(v).toFixed(2)} €` },
+    { title: 'Renta anterior', dataIndex: 'previous_rent', key: 'previous_rent', render: (v: string) => fmtMoney(v) },
+    { title: 'Renta nueva', dataIndex: 'new_rent', key: 'new_rent', render: (v: string) => fmtMoney(v) },
     { title: 'Índice', dataIndex: 'index_rate', key: 'index_rate', render: (v: string) => `${(parseFloat(v) * 100).toFixed(2)}%` },
     { title: 'Nombre', dataIndex: 'index_name', key: 'index_name' },
     { title: 'Notas', dataIndex: 'notes', key: 'notes', render: (v: string | null) => v ?? '-' },

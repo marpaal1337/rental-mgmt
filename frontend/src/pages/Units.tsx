@@ -1,9 +1,9 @@
 import { Button, Empty, Space, Table, Tag, Typography, Spin, message } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchProperties, fetchUnits } from '../api/endpoints'
 import UnitForm from '../components/UnitForm'
-import type { Property, Unit } from '../types'
+import type { Unit } from '../types'
 
 const emptyText = () => <Empty description="No hay unidades" />
 
@@ -16,37 +16,40 @@ const unitTypeLabels: Record<string, string> = {
 
 export default function Units() {
   const [units, setUnits] = useState<Unit[]>([])
-  const [properties, setProperties] = useState<Property[]>([])
+  const [propertyMap, setPropertyMap] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Unit | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    const m = mountedRef
+    m.current = true
+    Promise.all([fetchUnits(), fetchProperties()])
+      .then(([u, p]) => {
+        if (!m.current) return
+        setUnits(u)
+        const map: Record<number, string> = {}
+        p.forEach((prop) => { map[prop.id] = prop.name })
+        setPropertyMap(map)
+      })
+      .catch(() => { if (m.current) message.error('Error al cargar unidades') })
+      .finally(() => { if (m.current) setLoading(false) })
+    return () => { m.current = false }
+  }, [])
 
   const load = () => {
     setLoading(true)
     Promise.all([fetchUnits(), fetchProperties()])
       .then(([u, p]) => {
         setUnits(u)
-        setProperties(p)
+        const map: Record<number, string> = {}
+        p.forEach((prop) => { map[prop.id] = prop.name })
+        setPropertyMap(map)
       })
       .catch(() => message.error('Error al cargar unidades'))
       .finally(() => setLoading(false))
   }
-
-  useEffect(() => {
-    Promise.all([fetchUnits(), fetchProperties()])
-      .then(([u, p]) => {
-        setUnits(u)
-        setProperties(p)
-      })
-      .catch(() => message.error('Error al cargar unidades'))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const propertyMap = useMemo(() => {
-    const map: Record<number, string> = {}
-    properties.forEach((p) => { map[p.id] = p.name })
-    return map
-  }, [properties])
 
   const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },

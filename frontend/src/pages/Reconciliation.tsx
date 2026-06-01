@@ -1,11 +1,12 @@
 import { Button, Empty, Modal, Spin, Table, Tag, Tabs, Typography, Upload, message } from 'antd'
 import { CheckOutlined, UploadOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   confirmMatch, fetchAllMovements, fetchUnmatchedMovements,
   importBankCsv, proposeMatches,
 } from '../api/endpoints'
 import type { BankMovement, Reconciliation } from '../types'
+import { fmtMoney } from '../utils/format'
 
 const statusColors: Record<string, string> = {
   unmatched: 'orange',
@@ -28,6 +29,12 @@ export default function Reconciliation() {
   const [candidates, setCandidates] = useState<Reconciliation[]>([])
   const [candidatesOpen, setCandidatesOpen] = useState(false)
   const [confirming, setConfirming] = useState<number | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const loadData = () => {
     setLoading(true)
@@ -35,19 +42,20 @@ export default function Reconciliation() {
       fetchUnmatchedMovements(),
       fetchAllMovements(),
     ]).then(([u, a]) => {
-      setUnmatched(u)
-      setAllMovements(a)
-    }).catch(() => message.error('Error al cargar datos')).finally(() => setLoading(false))
+      if (mountedRef.current) { setUnmatched(u); setAllMovements(a) }
+    }).catch(() => { if (mountedRef.current) message.error('Error al cargar datos') }).finally(() => { if (mountedRef.current) setLoading(false) })
   }
 
   useEffect(() => {
+    const m = mountedRef
+    m.current = true
     Promise.all([
       fetchUnmatchedMovements(),
       fetchAllMovements(),
     ]).then(([u, a]) => {
-      setUnmatched(u)
-      setAllMovements(a)
-    }).catch(() => message.error('Error al cargar datos')).finally(() => setLoading(false))
+      if (m.current) { setUnmatched(u); setAllMovements(a) }
+    }).catch(() => { if (m.current) message.error('Error al cargar datos') }).finally(() => { if (m.current) setLoading(false) })
+    return () => { m.current = false }
   }, [])
 
   const handleImport = async (file: File) => {
@@ -98,7 +106,7 @@ export default function Reconciliation() {
       title: 'Importe',
       dataIndex: 'amount',
       key: 'amount',
-      render: (v: string) => `${parseFloat(v).toFixed(2)} €`,
+      render: (v: string) => fmtMoney(v),
     },
     { title: 'Concepto', dataIndex: 'concept', key: 'concept', ellipsis: true },
     {
@@ -120,7 +128,7 @@ export default function Reconciliation() {
       title: 'Importe',
       dataIndex: 'amount',
       key: 'amount',
-      render: (v: string) => `${parseFloat(v).toFixed(2)} €`,
+      render: (v: string) => fmtMoney(v),
     },
     { title: 'Concepto', dataIndex: 'concept', key: 'concept', ellipsis: true },
     {

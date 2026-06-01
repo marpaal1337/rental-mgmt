@@ -1,26 +1,17 @@
-import { Button, Empty, Space, Table, Typography, Spin, message } from 'antd'
+import { Button, Empty, Space, Table, Typography, Spin } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { fetchTenants } from '../api/endpoints'
 import TenantForm from '../components/TenantForm'
+import { useFetch } from '../hooks/useFetch'
 import type { Tenant } from '../types'
 
 const emptyText = () => <Empty description="No hay inquilinos" />
 
 export default function Tenants() {
-  const [tenants, setTenants] = useState<Tenant[]>([])
-  const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Tenant | null>(null)
-
-  const load = () => {
-    setLoading(true)
-    fetchTenants().then(setTenants).catch(() => message.error('Error al cargar inquilinos')).finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    fetchTenants().then(setTenants).catch(() => message.error('Error al cargar inquilinos')).finally(() => setLoading(false))
-  }, [])
+  const { data: tenants, loading, load } = useFetch(() => fetchTenants())
 
   const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
@@ -58,7 +49,7 @@ export default function Tenants() {
         </Space>
       </Typography.Title>
       <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={tenants} pagination={false} locale={{ emptyText }} />
+        <Table rowKey="id" columns={columns} dataSource={tenants ?? []} pagination={false} locale={{ emptyText }} />
       </Spin>
       <TenantForm
         open={formOpen}

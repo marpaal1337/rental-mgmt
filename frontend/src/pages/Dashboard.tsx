@@ -1,19 +1,10 @@
 import { FileTextOutlined, HomeOutlined, MoneyCollectOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { Card, Col, Row, Spin, Statistic, Typography } from 'antd'
-import { useEffect, useState } from 'react'
 import { fetchStats } from '../api/endpoints'
-import type { DashboardStats } from '../types'
+import { useFetch } from '../hooks/useFetch'
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetchStats()
-      .then(setStats)
-      .catch(() => setStats(null))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: stats, loading } = useFetch(() => fetchStats())
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />
 

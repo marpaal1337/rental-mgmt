@@ -1,26 +1,17 @@
-import { Button, Empty, Space, Table, Tag, Typography, Spin, message } from 'antd'
+import { Button, Empty, Space, Table, Tag, Typography, Spin } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { fetchLeases } from '../api/endpoints'
 import LeaseForm from '../components/LeaseForm'
+import { useFetch } from '../hooks/useFetch'
 import type { Lease } from '../types'
 
 const emptyText = () => <Empty description="No hay contratos" />
 
 export default function Leases() {
-  const [leases, setLeases] = useState<Lease[]>([])
-  const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Lease | null>(null)
-
-  const load = () => {
-    setLoading(true)
-    fetchLeases().then(setLeases).catch(() => message.error('Error al cargar contratos')).finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    fetchLeases().then(setLeases).catch(() => message.error('Error al cargar contratos')).finally(() => setLoading(false))
-  }, [])
+  const { data: leases, loading, load } = useFetch(() => fetchLeases())
 
   const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
@@ -82,7 +73,7 @@ export default function Leases() {
         </Space>
       </Typography.Title>
       <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={leases} pagination={false} locale={{ emptyText }} />
+        <Table rowKey="id" columns={columns} dataSource={leases ?? []} pagination={false} locale={{ emptyText }} />
       </Spin>
       <LeaseForm
         open={formOpen}

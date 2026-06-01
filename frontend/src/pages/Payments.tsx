@@ -1,9 +1,11 @@
-import { Button, Empty, Space, Table, Tag, Typography, Spin, message } from 'antd'
+import { Button, Empty, Space, Table, Tag, Typography, Spin } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { fetchPayments } from '../api/endpoints'
 import PaymentForm from '../components/PaymentForm'
+import { useFetch } from '../hooks/useFetch'
 import type { Payment } from '../types'
+import { fmtMoney } from '../utils/format'
 
 const methodColors: Record<string, string> = {
   transferencia: 'blue',
@@ -15,19 +17,9 @@ const methodColors: Record<string, string> = {
 const emptyText = () => <Empty description="No hay pagos" />
 
 export default function Payments() {
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Payment | null>(null)
-
-  const load = () => {
-    setLoading(true)
-    fetchPayments().then(setPayments).catch(() => message.error('Error al cargar pagos')).finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    fetchPayments().then(setPayments).catch(() => message.error('Error al cargar pagos')).finally(() => setLoading(false))
-  }, [])
+  const { data: payments, loading, load } = useFetch(() => fetchPayments())
 
   const columns = useMemo(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
@@ -36,7 +28,7 @@ export default function Payments() {
       title: 'Importe',
       dataIndex: 'amount',
       key: 'amount',
-      render: (v: string) => `${parseFloat(v).toFixed(2)} €`,
+      render: (v: string) => fmtMoney(v),
     },
     { title: 'Fecha', dataIndex: 'payment_date', key: 'payment_date' },
     {
@@ -82,7 +74,7 @@ export default function Payments() {
         </Space>
       </Typography.Title>
       <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={payments} pagination={false} locale={{ emptyText }} />
+        <Table rowKey="id" columns={columns} dataSource={payments ?? []} pagination={false} locale={{ emptyText }} />
       </Spin>
       <PaymentForm
         open={formOpen}
