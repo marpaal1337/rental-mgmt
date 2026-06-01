@@ -1,13 +1,22 @@
 import os
 import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 from alembic import context
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+def _get_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
+
+
+BUNDLE_ROOT = _get_root()
+sys.path.insert(0, str(BUNDLE_ROOT))
 
 from app.models import *  # noqa: F401, F403
 
@@ -18,31 +27,23 @@ if config.config_file_name is not None:
 
 target_metadata = SQLModel.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
 
 def get_database_url():
     from dotenv import load_dotenv
 
     load_dotenv()
-    return os.getenv("DATABASE_URL", "sqlite:///./data/db/rental.db")
+    url = os.getenv("DATABASE_URL")
+    if url:
+        return url
+    data_root = _get_root()
+    if getattr(sys, "frozen", False):
+        data_root = Path(sys.executable).parent
+    db_path = data_root / "data" / "db" / "rental.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{db_path}"
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
     url = get_database_url()
     context.configure(
         url=url,
@@ -56,12 +57,6 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = get_database_url()
 
