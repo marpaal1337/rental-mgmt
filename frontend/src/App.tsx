@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense, useCallback, useRef } from 'react'
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { Spin } from 'antd'
 import AppLayout from './components/AppLayout'
 
@@ -14,29 +14,44 @@ const Properties = lazy(() => import('./pages/Properties'))
 const Units = lazy(() => import('./pages/Units'))
 const Tenants = lazy(() => import('./pages/Tenants'))
 const Reconciliation = lazy(() => import('./pages/Reconciliation'))
+const Tutorial = lazy(() => import('./pages/Tutorial'))
 
 const fallback = <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />
+
+function AnimatedRoutes() {
+  const location = useLocation()
+  const nodeRef = useRef<HTMLDivElement>(null)
+
+  const wrapWithTransition = useCallback((element: React.ReactNode) => {
+    return <div ref={nodeRef}>{element}</div>
+  }, [])
+
+  return (
+    <Suspense fallback={fallback}>
+      <Routes location={location}>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={wrapWithTransition(<Dashboard />)} />
+          <Route path="/leases" element={wrapWithTransition(<Leases />)} />
+          <Route path="/leases/:id" element={wrapWithTransition(<LeaseDetail />)} />
+          <Route path="/invoices" element={wrapWithTransition(<Invoices />)} />
+          <Route path="/payments" element={wrapWithTransition(<Payments />)} />
+          <Route path="/expenses" element={wrapWithTransition(<Expenses />)} />
+          <Route path="/owners" element={wrapWithTransition(<Owners />)} />
+          <Route path="/properties" element={wrapWithTransition(<Properties />)} />
+          <Route path="/units" element={wrapWithTransition(<Units />)} />
+          <Route path="/tenants" element={wrapWithTransition(<Tenants />)} />
+          <Route path="/reconciliation" element={wrapWithTransition(<Reconciliation />)} />
+          <Route path="/tutorial" element={wrapWithTransition(<Tutorial />)} />
+        </Route>
+      </Routes>
+    </Suspense>
+  )
+}
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Suspense fallback={fallback}>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/leases" element={<Leases />} />
-            <Route path="/leases/:id" element={<LeaseDetail />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/payments" element={<Payments />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/owners" element={<Owners />} />
-            <Route path="/properties" element={<Properties />} />
-            <Route path="/units" element={<Units />} />
-            <Route path="/tenants" element={<Tenants />} />
-            <Route path="/reconciliation" element={<Reconciliation />} />
-          </Route>
-        </Routes>
-      </Suspense>
+      <AnimatedRoutes />
     </BrowserRouter>
   )
 }
