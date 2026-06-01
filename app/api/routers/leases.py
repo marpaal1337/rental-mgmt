@@ -8,7 +8,6 @@ from sqlmodel import Session, select
 
 from app.api.deps import verify_api_key
 from app.api.schemas import (
-    DepositCreate,
     DepositUpdate,
     IndexApplyRequest,
     LeaseCreate,
@@ -110,6 +109,9 @@ def apply_index(
             body.index_name,
             body.notes,
         )
+        session.commit()
+        session.refresh(cond)
+        session.refresh(update)
         return {
             "rent_condition": {
                 "id": cond.id,
