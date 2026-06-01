@@ -75,16 +75,16 @@ export default function PropertyForm({ open, onClose, onSaved, property }: Props
           <Input />
         </Form.Item>
         <Form.Item name="address" label="Dirección" rules={[{ required: true }]}>
-          <Input />
+          <Input autoComplete="street-address" />
         </Form.Item>
         <Form.Item name="city" label="Ciudad" rules={[{ required: true }]}>
-          <Input />
+          <Input autoComplete="address-level2" />
         </Form.Item>
         <Form.Item name="province" label="Provincia" rules={[{ required: true }]}>
-          <Input />
+          <Input autoComplete="address-level1" />
         </Form.Item>
         <Form.Item name="zip_code" label="Código postal" rules={[{ required: true }]}>
-          <Input />
+          <Input autoComplete="postal-code" inputMode="numeric" />
         </Form.Item>
         <Form.Item name="cadastral_ref" label="Referencia catastral">
           <Input />

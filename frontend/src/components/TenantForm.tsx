@@ -66,7 +66,7 @@ export default function TenantForm({ open, onClose, onSaved, tenant }: Props) {
     >
       <Form form={form} layout="vertical">
         <Form.Item name="name" label="Nombre" rules={[{ required: true }]}>
-          <Input />
+          <Input autoComplete="name" />
         </Form.Item>
         <Form.Item name="document_type" label="Tipo de documento" rules={[{ required: true }]}>
           <Select
@@ -79,13 +79,13 @@ export default function TenantForm({ open, onClose, onSaved, tenant }: Props) {
           />
         </Form.Item>
         <Form.Item name="document_number" label="Número de documento" rules={[{ required: true }]}>
-          <Input />
+          <Input inputMode="text" />
         </Form.Item>
         <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-          <Input type="email" />
+          <Input type="email" autoComplete="email" />
         </Form.Item>
         <Form.Item name="phone" label="Teléfono" rules={[{ required: true }]}>
-          <Input />
+          <Input type="tel" autoComplete="tel" inputMode="tel" />
         </Form.Item>
       </Form>
     </Modal>

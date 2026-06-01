@@ -67,7 +67,7 @@ export default function OwnerForm({ open, onClose, onSaved, owner }: Props) {
     >
       <Form form={form} layout="vertical">
         <Form.Item name="name" label="Nombre" rules={[{ required: true }]}>
-          <Input />
+          <Input autoComplete="name" />
         </Form.Item>
         <Form.Item name="document_type" label="Tipo documento" rules={[{ required: true }]}>
           <Select
@@ -80,16 +80,16 @@ export default function OwnerForm({ open, onClose, onSaved, owner }: Props) {
           />
         </Form.Item>
         <Form.Item name="document_number" label="Número documento" rules={[{ required: true }]}>
-          <Input />
+          <Input autoComplete="username" inputMode="text" />
         </Form.Item>
         <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-          <Input type="email" />
+          <Input type="email" autoComplete="email" />
         </Form.Item>
         <Form.Item name="phone" label="Teléfono" rules={[{ required: true }]}>
-          <Input />
+          <Input type="tel" autoComplete="tel" inputMode="tel" />
         </Form.Item>
         <Form.Item name="address" label="Dirección">
-          <Input.TextArea rows={2} />
+          <Input.TextArea rows={2} autoComplete="street-address" />
         </Form.Item>
       </Form>
     </Modal>
