@@ -2,8 +2,9 @@ import axios from 'axios'
 import type { AxiosRequestConfig } from 'axios'
 
 export function createClient(signal?: AbortSignal) {
+  const baseURL = import.meta.env.DEV ? '/api' : ''
   return axios.create({
-    baseURL: '/api',
+    baseURL,
     headers: {
       'X-API-Key': import.meta.env.VITE_API_KEY ?? 'dev-key-123',
     },
