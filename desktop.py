@@ -37,8 +37,16 @@ sys.path.insert(0, str(BASE_DIR))
 os.environ["RENTAL_MGMT_DESKTOP"] = "1"
 
 
+def _get_db_path() -> Path:
+    return DATA_DIR / "data" / "db" / "rental.db"
+
+
 def run_migrations():
     try:
+        db_path = _get_db_path()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        print(f"  Database: {db_path}")
+
         from alembic.config import Config
 
         from alembic import command
@@ -46,6 +54,7 @@ def run_migrations():
         alembic_ini = BASE_DIR / "alembic.ini"
         alembic_cfg = Config(str(alembic_ini))
         alembic_cfg.set_main_option("script_location", str(BASE_DIR / "alembic"))
+        alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
         command.upgrade(alembic_cfg, "head")
         return True
     except Exception as e:

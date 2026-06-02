@@ -30,6 +30,7 @@ def _resolve_path(value: str, default_rel: str) -> str:
         db_path = value[len("sqlite:///"):]
         if not Path(db_path).is_absolute():
             db_path = str(DATA_ROOT / db_path)
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{db_path}"
     return value
 
