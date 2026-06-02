@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -17,10 +16,8 @@ from app.api.routers import (
     tenants,
     units,
 )
-from app.jobs.scheduler import setup_scheduler
-
-
 from app.config import BUNDLE_ROOT
+from app.jobs.scheduler import setup_scheduler
 
 FRONTEND_DIR = BUNDLE_ROOT / "frontend" / "dist"
 
@@ -47,6 +44,10 @@ app.include_router(stats.router)
 
 @app.get("/")
 async def root():
+    if FRONTEND_DIR.is_dir():
+        index = FRONTEND_DIR / "index.html"
+        if index.is_file():
+            return FileResponse(str(index))
     return {"message": "Rental Management System API"}
 
 
