@@ -3,18 +3,28 @@
 import os
 import sys
 import threading
+import time
 from pathlib import Path
+
+from uvicorn import Config
+from uvicorn.server import Server
+
+
+class _ThreadServer(Server):
+    """Uvicorn Server subclass that skips signal handler installation
+    (signals only work from the main thread)."""
+
+    def install_signal_handlers(self):
+        pass
 
 
 def _get_root() -> Path:
-    """Get the root directory containing bundled data files."""
     if getattr(sys, "frozen", False):
         return Path(sys._MEIPASS)
     return Path(__file__).resolve().parent
 
 
 def _get_data_dir() -> Path:
-    """Get the directory for persistent data (database, backups)."""
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent
     return Path(__file__).resolve().parent
@@ -28,9 +38,9 @@ os.environ["RENTAL_MGMT_DESKTOP"] = "1"
 
 
 def run_migrations():
-    """Run Alembic migrations at startup."""
     try:
         from alembic.config import Config
+
         from alembic import command
 
         alembic_ini = BASE_DIR / "alembic.ini"
@@ -43,51 +53,43 @@ def run_migrations():
         return False
 
 
-def start_server():
-    """Start the FastAPI server with uvicorn."""
-    import uvicorn
-
-    port = int(os.getenv("RENTAL_PORT", "8000"))
-    uvicorn.run(
-        "app.main:app",
-        host="127.0.0.1",
-        port=port,
-        log_level="info",
-    )
-
-
 def main():
     (DATA_DIR / "data" / "db").mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "data" / "backups").mkdir(parents=True, exist_ok=True)
+
+    port = int(os.getenv("RENTAL_PORT", "8000"))
+    server = _ThreadServer(
+        Config("app.main:app", host="127.0.0.1", port=port, log_level="info")
+    )
 
     print("  Running database migrations...")
     run_migrations()
 
     print("  Starting server...")
-    server_thread = threading.Thread(target=start_server, daemon=True)
+    server_thread = threading.Thread(target=server.run)
     server_thread.start()
-
-    import time
     time.sleep(2)
 
-    port = int(os.getenv("RENTAL_PORT", "8000"))
     url = f"http://127.0.0.1:{port}"
 
     try:
         import webview
+
         print(f"  Opening native window at {url}")
         webview.create_window("Rental Management", url, width=1280, height=800)
         webview.start()
     except Exception:
         import webbrowser
+
         print(f"  Native window not available, opening browser at {url}")
-        print("  Press Ctrl+C to stop")
+        print("  Close the browser window and press Enter to stop the server...")
         webbrowser.open(url)
-        try:
-            while True:
-                time.sleep(3600)
-        except KeyboardInterrupt:
-            print("Shutting down...")
+        input()
+
+    print("  Shutting down server...")
+    server.should_exit = True
+    server_thread.join(timeout=10)
+    print("  Done.")
 
 
 if __name__ == "__main__":
