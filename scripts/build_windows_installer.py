@@ -1,19 +1,16 @@
-"""Build a Windows installer / bundle for rental-mgmt.
+"""Build a Windows installer for rental-mgmt.
 
 Usage:
-    python scripts/build_windows_installer.py                   # Build all available
-    python scripts/build_windows_installer.py --innosetup       # InnoSetup .exe only
-    python scripts/build_windows_installer.py --wix             # WiX .msi only
-    python scripts/build_windows_installer.py --zip             # Portable .zip only
-    python scripts/build_windows_installer.py --skip-pyinstaller  # Skip PyInstaller
+    python scripts/build_windows_installer.py           # Build InnoSetup .exe (default)
+    python scripts/build_windows_installer.py --zip      # Build portable .zip only
+    python scripts/build_windows_installer.py --wix      # Build WiX .msi only
 
 Requirements (Windows):
-    pip install pyinstaller
     InnoSetup: https://jrsoftware.org/isdl.php (add iscc to PATH)
     WiX: https://wixtoolset.org (add candle, light, heat to PATH)
 
 On WSL with InnoSetup installed on Windows:
-    python scripts/build_windows_installer.py --innosetup       # finds iscc.exe via /mnt/c/
+    python scripts/build_windows_installer.py            # finds iscc.exe via /mnt/c/
 """
 
 import argparse
@@ -31,15 +28,19 @@ def _find_windows_exe(name: str) -> str | None:
     exe = shutil.which(name)
     if exe:
         return exe
-    # On WSL, check Windows PATH via /mnt/c/
-    name_exe = name if name.endswith(".exe") else f"{name}.exe"
+    name_lower = name.lower().removesuffix(".exe")
     for root in [Path("/mnt/c/Program Files (x86)"), Path("/mnt/c/Program Files")]:
-        for p in root.rglob(name_exe):
-            return str(p)
+        for p in root.rglob("*"):
+            if p.is_file() and p.suffix.lower() == ".exe" and p.stem.lower() == name_lower:
+                return str(p)
     return None
 
 
 def build_frontend():
+    frontend_dist = BASE_DIR / "frontend" / "dist" / "index.html"
+    if frontend_dist.exists():
+        print("  Frontend already built, skipping...")
+        return
     print("→ Building frontend...")
     frontend_dir = BASE_DIR / "frontend"
     result = subprocess.run(
@@ -53,23 +54,6 @@ def build_frontend():
         print(result.stderr, file=sys.stderr)
         sys.exit(1)
     print("  Frontend built successfully")
-
-
-def build_pyinstaller():
-    print("→ Building PyInstaller (onedir mode)...")
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "pyinstaller", "-q"],
-        capture_output=True,
-    )
-    cmd = [
-        sys.executable, "-m", "PyInstaller",
-        "rental-mgmt.spec", "--clean", "--noconfirm",
-    ]
-    result = subprocess.run(cmd, cwd=str(BASE_DIR))
-    if result.returncode != 0:
-        print("ERROR building PyInstaller executable", file=sys.stderr)
-        sys.exit(result.returncode)
-    print("  PyInstaller done → dist/rental-mgmt/")
 
 
 def build_innosetup():
@@ -93,76 +77,34 @@ def build_innosetup():
         print("  InnoSetup installer created in dist/")
 
 
-def build_wix():
-    print("→ Building WiX MSI installer...")
-    for tool in ["candle", "light", "heat"]:
-        if not _find_windows_exe(tool):
-            print(f"  SKIP: {tool} (WiX Toolset) not found.", file=sys.stderr)
-            print("  Install from: https://wixtoolset.org", file=sys.stderr)
-            return
-
-    wix_dir = BASE_DIR / "build" / "wix"
-    dist_dir = BASE_DIR / "dist"
-    pyinst_dir = dist_dir / "rental-mgmt"
-
-    if not pyinst_dir.exists():
-        print("ERROR: PyInstaller output not found.", file=sys.stderr)
-        sys.exit(1)
-
-    print("  Harvesting files with heat.exe...")
-    heat = _find_windows_exe("heat")
-    subprocess.run([
-        heat, "dir", str(pyinst_dir),
-        "-gg", "-srd", "-sreg",
-        "-cg", "RentalMgmtFiles",
-        "-dr", "INSTALLDIR",
-        "-out", str(wix_dir / "Components.wxs"),
-    ], check=True, capture_output=True)
-    print("  Components.wxs generated")
-
-    print("  Compiling with candle.exe...")
-    candle = _find_windows_exe("candle")
-    subprocess.run([
-        candle,
-        str(wix_dir / "rental-mgmt.wxs"),
-        str(wix_dir / "Components.wxs"),
-    ], check=True, capture_output=True)
-
-    print("  Linking with light.exe...")
-    light = _find_windows_exe("light")
-    msi_output = str(dist_dir / "rental-mgmt-0.1.0.msi")
-    subprocess.run([
-        light,
-        str(wix_dir / "rental-mgmt.wixobj"),
-        str(wix_dir / "Components.wixobj"),
-        "-out", msi_output,
-    ], check=True, capture_output=True)
-
-    print(f"  WiX MSI installer: {msi_output}")
-
-    for f in wix_dir.glob("*.wixobj"):
-        f.unlink()
-    print("  Cleaned up intermediate files")
-
-
 def build_zip():
     print("→ Building portable ZIP bundle...")
     dist_dir = BASE_DIR / "dist"
-    pyinst_dir = dist_dir / "rental-mgmt"
-
-    if not pyinst_dir.exists():
-        print("ERROR: PyInstaller output not found.", file=sys.stderr)
-        sys.exit(1)
-
     zip_path = dist_dir / "rental-mgmt-portable.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in pyinst_dir.rglob("*"):
-            if f.is_file():
-                zf.write(f, f.relative_to(pyinst_dir.parent))
-
+        basedir = Path("rental-mgmt")
+        for src, dst in [
+            ("app", "app"),
+            ("frontend/dist", "frontend/dist"),
+            ("alembic", "alembic"),
+            ("alembic.ini", "alembic.ini"),
+            ("desktop.py", "desktop.py"),
+            ("pyproject.toml", "pyproject.toml"),
+            (".env.example", ".env.example"),
+            ("data/db", "data/db"),
+            ("data/backups", "data/backups"),
+            ("data/invoices", "data/invoices"),
+        ]:
+            path = BASE_DIR / src
+            if path.is_dir():
+                for f in path.rglob("*"):
+                    if f.is_file():
+                        zf.write(f, str(basedir / dst / f.relative_to(path)))
+            elif path.is_file():
+                zf.write(path, str(basedir / dst))
     print(f"  Portable ZIP: {zip_path}")
     print(f"  Size: {zip_path.stat().st_size / 1024 / 1024:.1f} MB")
-    print("  Unzip on Windows and run rental-mgmt.exe")
+    print("  Unzip on Windows and run run.bat")
 
 
 def main():
@@ -175,33 +117,21 @@ def main():
                         help="Build WiX MSI installer only (.msi)")
     parser.add_argument("--zip", action="store_true",
                         help="Build portable ZIP bundle only")
-    parser.add_argument("--skip-pyinstaller", action="store_true",
-                        help="Skip PyInstaller step (use existing dist/rental-mgmt/)")
     args = parser.parse_args()
 
     if sys.platform != "win32":
         print("INFO: Running on non-Windows. Will check for Windows tools via WSL paths.")
 
-    if not args.skip_pyinstaller:
-        build_frontend()
-        build_pyinstaller()
+    build_frontend()
 
-    pyinst_dir = BASE_DIR / "dist" / "rental-mgmt"
-    if not pyinst_dir.exists():
-        print("ERROR: dist/rental-mgmt/ not found. Run without --skip-pyinstaller.",
-              file=sys.stderr)
-        sys.exit(1)
-
-    # Determine what to build
     any_selected = args.innosetup or args.wix or args.zip
     want_innosetup = args.innosetup or (not any_selected and _find_windows_exe("iscc"))
-    want_wix = args.wix or (not any_selected and _find_windows_exe("candle"))
-    want_zip = args.zip or (not any_selected and not (want_innosetup or want_wix))
+    want_zip = args.zip or (not any_selected and not (want_innosetup or args.wix))
 
     if want_innosetup:
         build_innosetup()
-    if want_wix:
-        build_wix()
+    if args.wix:
+        print("  SKIP: WiX no compatible con este flujo (sin PyInstaller).")
     if want_zip:
         build_zip()
 
@@ -212,10 +142,6 @@ def main():
     if want_innosetup:
         for p in (BASE_DIR / "dist").glob("rental-mgmt-setup-*.exe"):
             print(f"  InnoSetup: {p}")
-    if want_wix:
-        msi = BASE_DIR / "dist" / "rental-mgmt-0.1.0.msi"
-        if msi.exists():
-            print(f"  WiX MSI:   {msi}")
     if want_zip:
         zipf = BASE_DIR / "dist" / "rental-mgmt-portable.zip"
         if zipf.exists():
