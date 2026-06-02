@@ -76,7 +76,6 @@ end;
 
 function PreparePythonInstall(PreviousPageId: Integer): Boolean;
 var
-  PythonInstallerPath: string;
   ResultCode: Integer;
 begin
   Result := True;
@@ -98,7 +97,6 @@ begin
   DownloadPage.Show;
   try
     DownloadPage.Download;
-    PythonInstallerPath := DownloadPage.PropagateCancel;
     PythonDownloaded := True;
   finally
     DownloadPage.Hide;
