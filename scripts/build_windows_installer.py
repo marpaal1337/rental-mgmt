@@ -14,6 +14,7 @@ On WSL with InnoSetup installed on Windows:
 """
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -29,7 +30,19 @@ def _find_windows_exe(name: str) -> str | None:
     if exe:
         return exe
     name_lower = name.lower().removesuffix(".exe")
-    for root in [Path("/mnt/c/Program Files (x86)"), Path("/mnt/c/Program Files")]:
+    search_dirs = []
+    # WSL paths
+    for p in [Path("/mnt/c/Program Files (x86)"), Path("/mnt/c/Program Files")]:
+        if p.exists():
+            search_dirs.append(p)
+    # Native Windows paths
+    for env_var in ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"]:
+        val = os.environ.get(env_var)
+        if val:
+            p = Path(val)
+            if p.exists():
+                search_dirs.append(p)
+    for root in search_dirs:
         for p in root.rglob("*"):
             if p.is_file() and p.suffix.lower() == ".exe" and p.stem.lower() == name_lower:
                 return str(p)
