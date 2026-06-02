@@ -6,6 +6,7 @@ __pycache__/
 build/
 !build/innosetup.iss
 !build/run.bat
+!build/icon.ico
 
 # Virtual environment
 venv/

@@ -19,6 +19,7 @@ OutputBaseFilename=rental-mgmt-setup-{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=icon.ico
 PrivilegesRequired=none
 DisableWelcomePage=no
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -38,6 +39,7 @@ Source: "..\alembic.ini"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\desktop.py"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\pyproject.toml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\.env.example"; DestDir: "{app}"; Flags: ignoreversion
+Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "run.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Dirs]
@@ -46,9 +48,9 @@ Name: "{app}\data\backups"; Flags: uninsneveruninstall
 Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; AppUserModelID: "RentalMgmt"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; AppUserModelID: "RentalMgmt"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; Tasks: desktopicon; AppUserModelID: "RentalMgmt"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon; AppUserModelID: "RentalMgmt"
 
 [Run]
 Filename: "{cmd}"; Parameters: "/C pip install ."; WorkingDir: "{app}"; Flags: runhidden waituntilterminated; StatusMsg: "Installing Python dependencies..."

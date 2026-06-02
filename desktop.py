@@ -43,6 +43,11 @@ def _get_db_path() -> Path:
     return DATA_DIR / "data" / "db" / "rental.db"
 
 
+def _get_icon_path() -> Path | None:
+    ico = BASE_DIR / "build" / "icon.ico"
+    return ico if ico.exists() else None
+
+
 def run_migrations():
     try:
         db_path = _get_db_path()
@@ -98,7 +103,13 @@ def main():
 
     port = int(os.getenv("RENTAL_PORT", "8000"))
     server = _ThreadServer(
-        Config("app.main:app", host="127.0.0.1", port=port, log_level="info")
+        Config(
+            "app.main:app",
+            host="127.0.0.1",
+            port=port,
+            log_level="error",
+            access_log=False,
+        )
     )
 
     backup_if_exists()
@@ -119,7 +130,13 @@ def main():
         import webview
 
         print(f"  Opening native window at {url}")
-        webview.create_window("Rental Management", url, width=1280, height=800)
+        webview.create_window(
+            "Rental Management",
+            url,
+            width=1280,
+            height=800,
+            icon=_get_icon_path(),
+        )
         webview.start()
     except Exception:
         import webbrowser

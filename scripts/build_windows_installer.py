@@ -70,6 +70,25 @@ def build_frontend():
     print("  Frontend built successfully")
 
 
+def build_icon():
+    ico = BASE_DIR / "build" / "icon.ico"
+    if ico.exists():
+        print("  Icon already generated, skipping...")
+        return
+    print("→ Generating application icon...")
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, str(BASE_DIR / "scripts" / "generate_icon.py")],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print("ERROR generating icon:", file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+        sys.exit(1)
+    print(result.stdout.strip())
+
+
 def build_innosetup():
     print("→ Building InnoSetup installer...")
     iscc = _find_windows_exe("iscc")
@@ -106,6 +125,7 @@ def build_zip():
             ("pyproject.toml", "pyproject.toml"),
             (".env.example", ".env.example"),
             ("data/db", "data/db"),
+            ("build/icon.ico", "build/icon.ico"),
             ("data/backups", "data/backups"),
             ("data/invoices", "data/invoices"),
         ]:
@@ -137,6 +157,8 @@ def main():
 
     if sys.platform != "win32":
         print("INFO: Running on non-Windows. Will check for Windows tools via WSL paths.")
+
+    build_icon()
 
     if not args.skip_frontend:
         build_frontend()
