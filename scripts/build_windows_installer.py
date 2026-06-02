@@ -118,12 +118,17 @@ def main():
                         help="Build WiX MSI installer only (.msi)")
     parser.add_argument("--zip", action="store_true",
                         help="Build portable ZIP bundle only")
+    parser.add_argument("--skip-frontend", action="store_true",
+                        help="Skip frontend build (use existing frontend/dist/)")
     args = parser.parse_args()
 
     if sys.platform != "win32":
         print("INFO: Running on non-Windows. Will check for Windows tools via WSL paths.")
 
-    build_frontend()
+    if not args.skip_frontend:
+        build_frontend()
+    else:
+        print("  Skipping frontend build (--skip-frontend)")
 
     any_selected = args.innosetup or args.wix or args.zip
     want_innosetup = args.innosetup or (not any_selected and _find_windows_exe("iscc"))

@@ -1,0 +1,1 @@
+function e(e){return`${parseFloat(String(e)).toFixed(2)} €`}export{e as t};
