@@ -71,7 +71,46 @@ python scripts/build_windows_installer.py --innosetup # Solo .exe
 python scripts/build_windows_installer.py --wix       # Solo .msi
 ```
 
-Flujo: compila frontend → PyInstaller (onedir) → empaqueta en instalador.
+Flujo: genera icono → compila frontend → InnoSetup empaqueta en instalador.
+
+### desktop.py — flujo de arranque
+
+```
+desktop.py
+  ├── backup_if_exists()     → copia rental.db → data/backups/pre-upgrade-*.db
+  ├── run_migrations()       → alembic upgrade head
+  ├── seed_if_empty()        → si Owner vacío, importa seed_database() de app/seeder.py
+  ├── uvicorn (log_level=error, sin access_log)
+  └── pywebview con icon.ico o navegador
+
+run.bat llama pythonw (sin ventana de consola en Windows).
+```
+
+### Icono de app
+
+| Archivo | Propósito |
+|---|---|
+| `frontend/public/favicon.svg` | Icono SVG (casa), fuente canónica |
+| `frontend/public/favicon.ico` | Fallback para navegadores (16/32/48px) |
+| `build/icon.ico` | Icono para el instalador y acceso directo (16–256px) |
+
+Generación: `python scripts/generate_icon.py` (Pillow). Se ejecuta automáticamente en `build_windows_installer.py`.
+
+### app/seeder.py
+
+`seed_database(session, *, clean=False)` — función reusable que acepta un `Session` externo.
+- `scripts/seed.py` es un wrapper thin que llama a `seed_database` y gestiona `commit()`.
+- `desktop.py` la llama tras migraciones si `Owner` está vacío.
+
+### Persistencia de datos en desinstalación
+
+En `build/innosetup.iss`:
+```
+[Dirs]
+Name: "{app}\data\db"; Flags: uninsneveruninstall
+Name: "{app}\data\backups"; Flags: uninsneveruninstall
+Name: "{app}\data\invoices"; Flags: uninsneveruninstall
+```
 
 ### Bugs corregidos
 
@@ -100,7 +139,8 @@ rental-mgmt/
 │   │   └── routers/   → leases, invoices, payments, expenses,
 │   │                   owners, tenants, properties, units,
 │   │                   reconciliation, stats
-│   └── jobs/          → APScheduler jobs
+│   ├── jobs/          → APScheduler jobs
+│   └── seeder.py      → Reusable seed logic (llamado por desktop.py y scripts/seed.py)
 ├── frontend/
 │   ├── src/
 │   │   ├── api/       → Axios client + endpoints
