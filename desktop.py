@@ -1,9 +1,11 @@
 """Entry point for the desktop application (pywebview native window)."""
 
 import os
+import shutil
 import sys
 import threading
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 from uvicorn import Config
@@ -62,6 +64,34 @@ def run_migrations():
         return False
 
 
+def backup_if_exists():
+    db_path = _get_db_path()
+    if not db_path.exists():
+        return
+    backup_dir = DATA_DIR / "data" / "backups"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    backup_path = backup_dir / f"pre-upgrade-{stamp}.db"
+    shutil.copy2(str(db_path), str(backup_path))
+    print(f"  Pre-upgrade backup: {backup_path.name}")
+
+
+def seed_if_empty():
+    from sqlmodel import Session, select
+
+    from app.database import engine
+    from app.models.owner import Owner
+    from app.seeder import seed_database
+
+    with Session(engine) as session:
+        if session.exec(select(Owner)).first() is not None:
+            return
+        print("  Seeding database with sample data...")
+        seed_database(session)
+        session.commit()
+        print("  Seed done.")
+
+
 def main():
     (DATA_DIR / "data" / "db").mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "data" / "backups").mkdir(parents=True, exist_ok=True)
@@ -71,8 +101,12 @@ def main():
         Config("app.main:app", host="127.0.0.1", port=port, log_level="info")
     )
 
+    backup_if_exists()
+
     print("  Running database migrations...")
     run_migrations()
+
+    seed_if_empty()
 
     print("  Starting server...")
     server_thread = threading.Thread(target=server.run)

@@ -41,9 +41,9 @@ Source: "..\.env.example"; DestDir: "{app}"; Flags: ignoreversion
 Source: "run.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Dirs]
-Name: "{app}\data\db"
-Name: "{app}\data\backups"
-Name: "{app}\data\invoices"
+Name: "{app}\data\db"; Flags: uninsneveruninstall
+Name: "{app}\data\backups"; Flags: uninsneveruninstall
+Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; AppUserModelID: "RentalMgmt"
