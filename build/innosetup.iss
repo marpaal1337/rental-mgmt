@@ -11,7 +11,7 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-DefaultDirName={autopf64}\{#MyAppName}
+DefaultDirName={localappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir={#SourcePath}\..\dist
@@ -19,7 +19,7 @@ OutputBaseFilename=rental-mgmt-setup-{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-PrivilegesRequired=admin
+PrivilegesRequired=none
 DisableWelcomePage=no
 ArchitecturesInstallIn64BitMode=x64compatible
 
@@ -112,7 +112,7 @@ begin
   WizardForm.StatusLabel.Caption := 'Instalando Python {#PythonVersion}...';
   WizardForm.ProgressGauge.Style := npbstMarquee;
   if Exec(ExpandConstant('{tmp}{\}python-{#PythonVersion}-amd64.exe'),
-          '/quiet InstallAllUsers=1 PrependPath=1 Include_test=0',
+          '/quiet PrependPath=1 Include_test=0',
           '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
   begin
     if ResultCode <> 0 then
