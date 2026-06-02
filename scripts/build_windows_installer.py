@@ -44,9 +44,10 @@ def build_frontend():
     print("→ Building frontend...")
     frontend_dir = BASE_DIR / "frontend"
     result = subprocess.run(
-        ["npm", "run", "build"],
+        "npm run build",
         cwd=str(frontend_dir),
         capture_output=True, text=True,
+        shell=True,
     )
     if result.returncode != 0:
         print("ERROR building frontend:", file=sys.stderr)
