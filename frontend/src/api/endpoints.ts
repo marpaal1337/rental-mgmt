@@ -150,11 +150,12 @@ export async function updatePayment(id: number, payload: PaymentUpdatePayload): 
 }
 
 export async function fetchExpenses(
-  propertyId: number,
+  propertyId?: number,
   year?: number
 ): Promise<Expense[]> {
-  const params: Record<string, string> = { property_id: String(propertyId) }
-  if (year) params.year = String(year)
+  const params: Record<string, string> = {}
+  if (propertyId !== undefined) params.property_id = String(propertyId)
+  if (year !== undefined) params.year = String(year)
   const { data } = await client.get('/expenses', { params })
   return data
 }

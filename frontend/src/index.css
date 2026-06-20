@@ -1,38 +1,23 @@
 :root {
-  /* Design Tokens — Tier 1: raw */
-  --color-blue-10: #e6f4ff;
-  --color-blue-50: #1677ff;
-  --color-blue-60: #0958d9;
-  --color-green-50: #52c41a;
-  --color-green-60: #389e0d;
-  --color-red-50: #ff4d4f;
-  --color-red-60: #cf1322;
-  --color-orange-50: #fa8c16;
-  --color-gray-00: #fff;
-  --color-gray-10: #fafafa;
-  --color-gray-20: #f0f0f0;
-  --color-gray-30: #d9d9d9;
-  --color-gray-50: #8c8c8c;
-  --color-gray-60: #595959;
-  --color-gray-80: #262626;
-  --color-gray-90: #1f1f1f;
-  --color-gray-100: #141414;
-  --color-purple-50: #722ed1;
+  --color-teal: #1A6B6B;
+  --color-teal-dark: #145252;
+  --color-teal-light: #E8F4F4;
+  --color-teal-10: #f0f7f7;
+  --color-terracotta: #C1704A;
+  --color-terracotta-light: #f8f0eb;
+  --color-gold: #D4943A;
+  --color-gold-light: #fdf4e8;
+  --color-sage: #6B8F3A;
+  --color-sage-light: #EEF5E8;
+  --color-surface: #FFFFFF;
+  --color-border: #E8E2DA;
+  --color-text-primary: #2D2A24;
+  --color-text-secondary: #7A736C;
+  --color-text-tertiary: #A39B93;
+  --color-bg-page: #F8F4EF;
 
-  /* Tier 2: semantic */
-  --color-accent: var(--color-blue-50);
-  --color-success: var(--color-green-50);
-  --color-danger: var(--color-red-50);
-  --color-warning: var(--color-orange-50);
-  --color-bg: var(--color-gray-00);
-  --color-bg-subtle: var(--color-gray-10);
-  --color-border: var(--color-gray-20);
-  --color-text: var(--color-gray-80);
-  --color-text-secondary: var(--color-gray-60);
-  --color-text-tertiary: var(--color-gray-50);
-
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   --fs-xs: clamp(0.69rem, 0.66rem + 0.12vw, 0.75rem);
   --fs-sm: clamp(0.8rem, 0.78rem + 0.1vw, 0.875rem);
@@ -40,18 +25,13 @@
   --fs-lg: clamp(1.125rem, 1rem + 0.28vw, 1.25rem);
   --fs-xl: clamp(1.5rem, 1.2rem + 0.6vw, 1.75rem);
 
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 48px;
-
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
   --radius-lg: 16px;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 1px 3px rgba(45, 42, 36, 0.06);
+  --shadow-md: 0 4px 16px rgba(45, 42, 36, 0.08);
+  --shadow-lg: 0 8px 32px rgba(45, 42, 36, 0.10);
 }
 
 * {
@@ -65,20 +45,75 @@ html {
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   font-size: var(--fs-base);
   line-height: 1.6;
-  color: var(--color-text);
-  background: var(--color-bg);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+::selection {
+  background: var(--color-teal);
+  color: white;
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-teal);
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: fadeSlideUp 0.35s ease-out;
+}
+
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-card {
+  animation: cardEntrance 0.4s ease-out both;
+}
+
+.stagger-card:nth-child(1) { animation-delay: 0.05s; }
+.stagger-card:nth-child(2) { animation-delay: 0.10s; }
+.stagger-card:nth-child(3) { animation-delay: 0.15s; }
+.stagger-card:nth-child(4) { animation-delay: 0.20s; }
 
 .ant-table-row {
   content-visibility: auto;
   contain-intrinsic-block-size: auto 54px;
+  transition: background 0.15s ease;
+}
+
+.ant-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.ant-card:hover {
+  box-shadow: var(--shadow-md);
 }

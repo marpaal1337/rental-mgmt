@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useRef } from 'react'
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { Spin } from 'antd'
 import AppLayout from './components/AppLayout'
@@ -20,28 +20,47 @@ const fallback = <Spin size="large" style={{ display: 'block', margin: '80px aut
 
 function AnimatedRoutes() {
   const location = useLocation()
-  const nodeRef = useRef<HTMLDivElement>(null)
-
-  const wrapWithTransition = useCallback((element: React.ReactNode) => {
-    return <div ref={nodeRef}>{element}</div>
-  }, [])
 
   return (
     <Suspense fallback={fallback}>
-      <Routes location={location}>
+      <Routes location={location} key={location.pathname}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={wrapWithTransition(<Dashboard />)} />
-          <Route path="/leases" element={wrapWithTransition(<Leases />)} />
-          <Route path="/leases/:id" element={wrapWithTransition(<LeaseDetail />)} />
-          <Route path="/invoices" element={wrapWithTransition(<Invoices />)} />
-          <Route path="/payments" element={wrapWithTransition(<Payments />)} />
-          <Route path="/expenses" element={wrapWithTransition(<Expenses />)} />
-          <Route path="/owners" element={wrapWithTransition(<Owners />)} />
-          <Route path="/properties" element={wrapWithTransition(<Properties />)} />
-          <Route path="/units" element={wrapWithTransition(<Units />)} />
-          <Route path="/tenants" element={wrapWithTransition(<Tenants />)} />
-          <Route path="/reconciliation" element={wrapWithTransition(<Reconciliation />)} />
-          <Route path="/tutorial" element={wrapWithTransition(<Tutorial />)} />
+          <Route path="/" element={
+            <div className="page-enter"><Dashboard /></div>
+          } />
+          <Route path="/leases" element={
+            <div className="page-enter"><Leases /></div>
+          } />
+          <Route path="/leases/:id" element={
+            <div className="page-enter"><LeaseDetail /></div>
+          } />
+          <Route path="/invoices" element={
+            <div className="page-enter"><Invoices /></div>
+          } />
+          <Route path="/payments" element={
+            <div className="page-enter"><Payments /></div>
+          } />
+          <Route path="/expenses" element={
+            <div className="page-enter"><Expenses /></div>
+          } />
+          <Route path="/owners" element={
+            <div className="page-enter"><Owners /></div>
+          } />
+          <Route path="/properties" element={
+            <div className="page-enter"><Properties /></div>
+          } />
+          <Route path="/units" element={
+            <div className="page-enter"><Units /></div>
+          } />
+          <Route path="/tenants" element={
+            <div className="page-enter"><Tenants /></div>
+          } />
+          <Route path="/reconciliation" element={
+            <div className="page-enter"><Reconciliation /></div>
+          } />
+          <Route path="/tutorial" element={
+            <div className="page-enter"><Tutorial /></div>
+          } />
         </Route>
       </Routes>
     </Suspense>
