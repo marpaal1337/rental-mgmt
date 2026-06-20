@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
@@ -36,13 +38,28 @@ def create_property(body: PropertyCreate, session: Session = Depends(get_session
 
 
 @router.put("/{property_id}")
-def update_property(property_id: int, body: PropertyUpdate, session: Session = Depends(get_session)):
+def update_property(
+    property_id: int,
+    body: PropertyUpdate,
+    session: Session = Depends(get_session),
+):
     prop = session.get(Property, property_id)
     if prop is None or prop.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Property not found")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(prop, field, value)
+    prop.updated_at = datetime.now(UTC)
     session.add(prop)
     session.commit()
     session.refresh(prop)
     return prop
+
+
+@router.delete("/{property_id}")
+def delete_property(property_id: int, session: Session = Depends(get_session)):
+    prop = session.get(Property, property_id)
+    if prop is None or prop.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Property not found")
+    prop.deleted_at = datetime.now(UTC)
+    session.commit()
+    return {"detail": "Property deleted"}

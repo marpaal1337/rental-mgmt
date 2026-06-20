@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlmodel import Session, select
@@ -36,7 +36,6 @@ class ReconciliationService:
             )
             session.add(movement)
             movements.append(movement)
-        session.commit()
         return movements
 
     @staticmethod
@@ -88,7 +87,6 @@ class ReconciliationService:
             movement.status = "proposed"
             session.add(movement)
 
-        session.commit()
         return reconciliations
 
     @staticmethod
@@ -124,11 +122,10 @@ class ReconciliationService:
         if reconciliation is None or reconciliation.deleted_at is not None:
             raise ReconciliationError(f"Reconciliation {reconciliation_id} not found")
 
-        reconciliation.confirmed_at = datetime.now()
+        reconciliation.confirmed_at = datetime.now(UTC)
         reconciliation.bank_movement.status = "confirmed"
         session.add(reconciliation)
         session.add(reconciliation.bank_movement)
-        session.commit()
         return reconciliation
 
     @staticmethod

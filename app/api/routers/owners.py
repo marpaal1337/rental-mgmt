@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
@@ -42,7 +44,18 @@ def update_owner(owner_id: int, body: OwnerUpdate, session: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Owner not found")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(owner, field, value)
+    owner.updated_at = datetime.now(UTC)
     session.add(owner)
     session.commit()
     session.refresh(owner)
     return owner
+
+
+@router.delete("/{owner_id}")
+def delete_owner(owner_id: int, session: Session = Depends(get_session)):
+    owner = session.get(Owner, owner_id)
+    if owner is None or owner.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Owner not found")
+    owner.deleted_at = datetime.now(UTC)
+    session.commit()
+    return {"detail": "Owner deleted"}

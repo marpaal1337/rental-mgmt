@@ -93,5 +93,4 @@ class InvoiceService:
 
             invoices.append(invoice)
 
-        session.commit()
         return invoices

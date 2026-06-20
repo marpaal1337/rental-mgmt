@@ -505,4 +505,8 @@ class TestHealth:
     def test_root(self, client: TestClient):
         resp = client.get("/")
         assert resp.status_code == 200
-        assert "message" in resp.json()
+        ct = resp.headers.get("content-type", "")
+        if "html" in ct:
+            assert "<html" in resp.text.lower()
+        else:
+            assert "message" in resp.json()

@@ -60,7 +60,7 @@ class ExpenseService:
             notes=notes,
         )
         session.add(expense)
-        session.commit()
+        session.flush()
         return expense
 
     @staticmethod

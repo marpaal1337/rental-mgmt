@@ -18,7 +18,7 @@ def _get_root() -> Path:
 BUNDLE_ROOT = _get_root()
 sys.path.insert(0, str(BUNDLE_ROOT))
 
-from app.models import *  # noqa: F401, F403
+from app.models import *  # noqa: F401, F403, E402
 
 config = context.config
 

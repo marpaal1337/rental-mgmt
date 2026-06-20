@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -71,6 +71,7 @@ def update_lease(
         raise HTTPException(status_code=404, detail="Lease not found")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(lease, field, value)
+    lease.updated_at = datetime.now(UTC)
     session.add(lease)
     session.commit()
     session.refresh(lease)
@@ -190,6 +191,7 @@ def upsert_tax_profile(
         session.add(profile)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(profile, field, value)
+    profile.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(profile)
     return profile
@@ -223,10 +225,14 @@ def upsert_deposit(
         )
     ).first()
     if deposit is None:
-        deposit = Deposit(lease_id=lease_id, amount=Decimal("0"), deposit_date=date.today(), agency="")
+        deposit = Deposit(
+            lease_id=lease_id, amount=Decimal("0"),
+            deposit_date=date.today(), agency="",
+        )
         session.add(deposit)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(deposit, field, value)
+    deposit.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(deposit)
     return deposit
@@ -241,3 +247,13 @@ def list_index_updates(lease_id: int, session: Session = Depends(get_session)):
             IndexUpdate.deleted_at.is_(None),
         ).order_by(IndexUpdate.application_date.desc())
     ).all()
+
+
+@router.delete("/{lease_id}")
+def delete_lease(lease_id: int, session: Session = Depends(get_session)):
+    lease = session.get(Lease, lease_id)
+    if lease is None or lease.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Lease not found")
+    lease.deleted_at = datetime.now(UTC)
+    session.commit()
+    return {"detail": "Lease deleted"}

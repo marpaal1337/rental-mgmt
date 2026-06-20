@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -47,6 +48,8 @@ def register_expense(
             body.invoice_number,
             body.notes,
         )
+        session.commit()
+        session.refresh(expense)
         return expense
     except ExpenseError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -63,10 +66,21 @@ def update_expense(
         raise HTTPException(status_code=404, detail="Expense not found")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(expense, field, value)
+    expense.updated_at = datetime.now(UTC)
     session.add(expense)
     session.commit()
     session.refresh(expense)
     return expense
+
+
+@router.delete("/{expense_id}")
+def delete_expense(expense_id: int, session: Session = Depends(get_session)):
+    expense = session.get(ExpenseModel, expense_id)
+    if expense is None or expense.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    expense.deleted_at = datetime.now(UTC)
+    session.commit()
+    return {"detail": "Expense deleted"}
 
 
 @router.get("/categories")

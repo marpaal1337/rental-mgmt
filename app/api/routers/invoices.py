@@ -35,6 +35,7 @@ def generate_invoices(
 ):
     try:
         invoices = InvoiceService.generate_monthly(session, body.period)
+        session.commit()
         return invoices
     except InvoiceGenerationError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -41,7 +41,6 @@ class PaymentService:
 
         PaymentService._update_invoice_status(session, invoice)
 
-        session.commit()
         return payment
 
     @staticmethod

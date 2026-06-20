@@ -1,3 +1,6 @@
+import tempfile
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlmodel import Session
 
@@ -17,13 +20,19 @@ router = APIRouter(
 @router.post("/import", status_code=201)
 def import_csv(file: UploadFile, session: Session = Depends(get_session)):
     content = file.file.read()
-    tmp_path = f"/tmp/{file.filename}"
-    with open(tmp_path, "wb") as f:
-        f.write(content)
-
-    adapter = INGBankAdapter()
-    movements = ReconciliationService.import_csv(session, tmp_path, adapter)
-    return movements
+    suffix = Path(file.filename or "import.csv").suffix or ".csv"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    try:
+        adapter = INGBankAdapter()
+        movements = ReconciliationService.import_csv(session, tmp_path, adapter)
+        session.commit()
+        for m in movements:
+            session.refresh(m)
+        return movements
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
 
 @router.post("/{movement_id}/propose")
@@ -33,6 +42,7 @@ def propose_matches(
 ):
     try:
         recs = ReconciliationService.propose_matches(session, movement_id)
+        session.commit()
         return recs
     except ReconciliationError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -45,6 +55,8 @@ def confirm_match(
 ):
     try:
         rec = ReconciliationService.confirm_match(session, reconciliation_id)
+        session.commit()
+        session.refresh(rec)
         return rec
     except ReconciliationError as e:
         raise HTTPException(status_code=404, detail=str(e))
