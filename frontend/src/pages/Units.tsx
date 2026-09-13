@@ -1,120 +1,68 @@
-import { Button, Empty, Space, Table, Tag, Typography, Spin, message } from 'antd'
-import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { useMemo } from 'react'
 import { fetchProperties, fetchUnits } from '../api/endpoints'
+import { queryKeys } from '../api/queryKeys'
+import CrudPage from '../components/CrudPage'
 import UnitForm from '../components/UnitForm'
 import type { Unit } from '../types'
-
-const emptyText = () => <Empty description="No hay unidades" />
-
-const unitTypeLabels: Record<string, string> = {
-  vivienda: 'Vivienda',
-  local: 'Local',
-  garage: 'Garaje',
-  trastero: 'Trastero',
-}
+import { unitTypeLabels } from '../utils/labels'
 
 export default function Units() {
-  const [units, setUnits] = useState<Unit[]>([])
-  const [propertyMap, setPropertyMap] = useState<Record<number, string>>({})
-  const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<Unit | null>(null)
-  const mountedRef = useRef(true)
+  const { data: properties } = useQuery({
+    queryKey: queryKeys.properties,
+    queryFn: fetchProperties,
+  })
 
-  useEffect(() => {
-    const m = mountedRef
-    m.current = true
-    Promise.all([fetchUnits(), fetchProperties()])
-      .then(([u, p]) => {
-        if (!m.current) return
-        setUnits(u)
-        const map: Record<number, string> = {}
-        p.forEach((prop) => { map[prop.id] = prop.name })
-        setPropertyMap(map)
-      })
-      .catch(() => { if (m.current) message.error('Error al cargar unidades') })
-      .finally(() => { if (m.current) setLoading(false) })
-    return () => { m.current = false }
-  }, [])
+  const propertyNames = useMemo(() => {
+    const map: Record<number, string> = {}
+    for (const property of properties ?? []) map[property.id] = property.name
+    return map
+  }, [properties])
 
-  const load = () => {
-    setLoading(true)
-    Promise.all([fetchUnits(), fetchProperties()])
-      .then(([u, p]) => {
-        setUnits(u)
-        const map: Record<number, string> = {}
-        p.forEach((prop) => { map[prop.id] = prop.name })
-        setPropertyMap(map)
-      })
-      .catch(() => message.error('Error al cargar unidades'))
-      .finally(() => setLoading(false))
-  }
-
-  const columns = useMemo(() => [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    {
-      title: 'Propiedad',
-      key: 'property',
-      render: (_: unknown, r: Unit) => propertyMap[r.property_id] ?? '-',
-    },
-    { title: 'Nombre', dataIndex: 'name', key: 'name' },
-    {
-      title: 'Tipo',
-      dataIndex: 'unit_type',
-      key: 'unit_type',
-      render: (v: string) => unitTypeLabels[v] ?? v,
-    },
-    {
-      title: 'Área m²',
-      dataIndex: 'area_m2',
-      key: 'area_m2',
-      render: (v: number | null) => (v != null ? v : '-'),
-    },
-    {
-      title: 'Activo',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      render: (v: boolean) =>
-        v ? <Tag color="green">Sí</Tag> : <Tag color="default">No</Tag>,
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 60,
-      render: (_: unknown, r: Unit) => (
-        <Button
-          type="link"
-          icon={<EditOutlined />}
-          aria-label="Editar unidad"
-          onClick={() => {
-            setEditing(r)
-            setFormOpen(true)
-          }}
-        />
-      ),
-    },
-  ], [propertyMap])
+  const columns = useMemo<ColumnsType<Unit>>(
+    () => [
+      { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
+      {
+        title: 'Propiedad',
+        key: 'property',
+        render: (_: unknown, record: Unit) => propertyNames[record.property_id] ?? '-',
+      },
+      { title: 'Nombre', dataIndex: 'name', key: 'name' },
+      {
+        title: 'Tipo',
+        dataIndex: 'unit_type',
+        key: 'unit_type',
+        render: (value: string) => unitTypeLabels[value] ?? value,
+      },
+      {
+        title: 'Área m²',
+        dataIndex: 'area_m2',
+        key: 'area_m2',
+        render: (value: number | null) => (value != null ? value : '-'),
+      },
+      {
+        title: 'Activo',
+        dataIndex: 'is_active',
+        key: 'is_active',
+        render: (value: boolean) =>
+          value ? <Tag color="green">Sí</Tag> : <Tag color="default">No</Tag>,
+      },
+    ],
+    [propertyNames],
+  )
 
   return (
-    <>
-      <Typography.Title level={3}>
-        <Space align="center">
-          Unidades
-          <Button type="primary" icon={<PlusOutlined />} aria-label="Nueva unidad" onClick={() => { setEditing(null); setFormOpen(true) }}>
-            Nueva
-          </Button>
-        </Space>
-      </Typography.Title>
-      <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={units} pagination={false} locale={{ emptyText }} />
-      </Spin>
-      <UnitForm
-        open={formOpen}
-        onClose={() => { setFormOpen(false); setEditing(null) }}
-        onSaved={load}
-        unit={editing}
-      />
-    </>
+    <CrudPage
+      title="Unidades"
+      newLabel="Nueva unidad"
+      emptyDescription="No hay unidades"
+      queryKey={queryKeys.units}
+      fetchFn={fetchUnits}
+      columns={columns}
+      FormComponent={UnitForm}
+      errorMessage="Error al cargar unidades"
+    />
   )
 }

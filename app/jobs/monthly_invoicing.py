@@ -23,13 +23,14 @@ def generate_monthly_invoices(
 
     try:
         invoices = InvoiceService.generate_monthly(session, period)
-        log = EventLog(
-            event_type="invoice_generation",
-            description=f"Generated {len(invoices)} invoices for {period}",
-            details=f"period={period}, count={len(invoices)}",
-            level="info",
-        )
-        session.add(log)
+        if invoices:
+            log = EventLog(
+                event_type="invoice_generation",
+                description=f"Generated {len(invoices)} invoices for {period}",
+                details=f"period={period}, count={len(invoices)}",
+                level="info",
+            )
+            session.add(log)
         session.commit()
         return invoices
     except InvoiceGenerationError as e:

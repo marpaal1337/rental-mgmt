@@ -88,43 +88,10 @@ class TestGenerateMonthlyInvoices:
         assert "Generated" in logs[0].description
 
     def test_logs_error_on_failure(self, session: Session):
-        owner = Owner(
-            name="O", document_type="DNI", document_number="1", email="o@t.com", phone="+34"
-        )
-        session.add(owner)
-        session.flush()
-        prop = Property(
-            name="P", address="A", city="C", province="P", zip_code="28001", owner_id=owner.id
-        )
-        session.add(prop)
-        session.flush()
-        unit = Unit(property_id=prop.id, name="U", unit_type="vivienda")
-        session.add(unit)
-        session.flush()
-        tenant = Tenant(
-            name="T", document_type="DNI", document_number="2", email="t@t.com", phone="+34"
-        )
-        session.add(tenant)
-        session.flush()
-        lease = Lease(
-            unit_id=unit.id,
-            tenant_id=tenant.id,
-            owner_id=owner.id,
-            start_date=date(2024, 1, 1),
-            is_active=True,
-        )
-        session.add(lease)
-        session.flush()
-        rc = RentCondition(
-            lease_id=lease.id, start_date=date(2024, 1, 1), monthly_rent=Decimal("500")
-        )
-        session.add(rc)
-        session.flush()
-
         from app.services.invoice_service import InvoiceGenerationError
 
         try:
-            generate_monthly_invoices("2024-06", session=session)
+            generate_monthly_invoices("not-a-period", session=session)
         except InvoiceGenerationError:
             pass
 

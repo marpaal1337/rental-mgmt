@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 class Lease(AuditMixin, table=True):
     __tablename__ = "lease"
 
-    unit_id: int = Field(foreign_key="unit.id", nullable=False)
-    tenant_id: int = Field(foreign_key="tenant.id", nullable=False)
-    owner_id: int = Field(foreign_key="owner.id", nullable=False)
+    unit_id: int = Field(foreign_key="unit.id", nullable=False, index=True)
+    tenant_id: int = Field(foreign_key="tenant.id", nullable=False, index=True)
+    owner_id: int = Field(foreign_key="owner.id", nullable=False, index=True)
     start_date: date = Field(nullable=False)
     end_date: Optional[date] = Field(default=None)
     is_active: bool = Field(default=True)
@@ -46,8 +46,8 @@ class Lease(AuditMixin, table=True):
 class RentCondition(AuditMixin, table=True):
     __tablename__ = "rent_condition"
 
-    lease_id: int = Field(foreign_key="lease.id", nullable=False)
-    start_date: date = Field(nullable=False)
+    lease_id: int = Field(foreign_key="lease.id", nullable=False, index=True)
+    start_date: date = Field(nullable=False, index=True)
     monthly_rent: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(10, 2), nullable=False),
@@ -93,8 +93,8 @@ class Deposit(AuditMixin, table=True):
 class IndexUpdate(AuditMixin, table=True):
     __tablename__ = "index_update"
 
-    lease_id: int = Field(foreign_key="lease.id", nullable=False)
-    application_date: date = Field(nullable=False)
+    lease_id: int = Field(foreign_key="lease.id", nullable=False, index=True)
+    application_date: date = Field(nullable=False, index=True)
     previous_rent: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(10, 2), nullable=False),

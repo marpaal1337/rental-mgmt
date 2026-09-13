@@ -1,170 +1,157 @@
-import { Button, Empty, Modal, Spin, Table, Tag, Tabs, Typography, Upload, message } from 'antd'
 import { CheckOutlined, UploadOutlined } from '@ant-design/icons'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Button, Empty, Modal, Spin, Table, Tabs, Tag, Typography, Upload, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { useMemo, useState } from 'react'
 import {
   confirmMatch, fetchAllMovements, fetchUnmatchedMovements,
   importBankCsv, proposeMatches,
 } from '../api/endpoints'
+import { queryKeys } from '../api/queryKeys'
 import type { BankMovement, Reconciliation } from '../types'
 import { fmtMoney } from '../utils/format'
-
-const statusColors: Record<string, string> = {
-  unmatched: 'orange',
-  proposed: 'blue',
-  confirmed: 'green',
-}
-
-const statusLabels: Record<string, string> = {
-  unmatched: 'Sin procesar',
-  proposed: 'Propuesto',
-  confirmed: 'Confirmado',
-}
+import { movementStatusColors, movementStatusLabels } from '../utils/labels'
 
 const emptyText = () => <Empty description="Sin datos" />
 
-export default function Reconciliation() {
-  const [unmatched, setUnmatched] = useState<BankMovement[]>([])
-  const [allMovements, setAllMovements] = useState<BankMovement[]>([])
-  const [loading, setLoading] = useState(false)
+export default function ReconciliationPage() {
+  const queryClient = useQueryClient()
   const [candidates, setCandidates] = useState<Reconciliation[]>([])
   const [candidatesOpen, setCandidatesOpen] = useState(false)
-  const [confirming, setConfirming] = useState<number | null>(null)
-  const mountedRef = useRef(true)
 
-  useEffect(() => {
-    mountedRef.current = true
-    return () => { mountedRef.current = false }
-  }, [])
+  const unmatchedQuery = useQuery({
+    queryKey: queryKeys.unmatchedMovements,
+    queryFn: fetchUnmatchedMovements,
+  })
+  const allQuery = useQuery({
+    queryKey: queryKeys.allMovements,
+    queryFn: fetchAllMovements,
+  })
 
-  const loadData = () => {
-    setLoading(true)
-    Promise.all([
-      fetchUnmatchedMovements(),
-      fetchAllMovements(),
-    ]).then(([u, a]) => {
-      if (mountedRef.current) { setUnmatched(u); setAllMovements(a) }
-    }).catch(() => { if (mountedRef.current) message.error('Error al cargar datos') }).finally(() => { if (mountedRef.current) setLoading(false) })
+  const invalidateMovements = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.unmatchedMovements })
+    queryClient.invalidateQueries({ queryKey: queryKeys.allMovements })
   }
 
-  useEffect(() => {
-    const m = mountedRef
-    m.current = true
-    Promise.all([
-      fetchUnmatchedMovements(),
-      fetchAllMovements(),
-    ]).then(([u, a]) => {
-      if (m.current) { setUnmatched(u); setAllMovements(a) }
-    }).catch(() => { if (m.current) message.error('Error al cargar datos') }).finally(() => { if (m.current) setLoading(false) })
-    return () => { m.current = false }
-  }, [])
+  const importMutation = useMutation({
+    mutationFn: importBankCsv,
+    onSuccess: (movements) => {
+      message.success(`${movements.length} movimientos importados`)
+      invalidateMovements()
+    },
+    onError: (error: Error) => message.error(error.message),
+  })
 
-  const handleImport = async (file: File) => {
-    try {
-      const result = await importBankCsv(file)
-      message.success(`${result.length} movimientos importados`)
-      loadData()
-    } catch {
-      message.error('Error al importar CSV')
-    }
-    return false
-  }
-
-  const handlePropose = async (movementId: number) => {
-    try {
-      const recs = await proposeMatches(movementId)
-      if (recs.length === 0) {
+  const proposeMutation = useMutation({
+    mutationFn: proposeMatches,
+    onSuccess: (reconciliations) => {
+      if (reconciliations.length === 0) {
         message.info('No se encontraron coincidencias con pagos existentes')
         return
       }
-      setCandidates(recs)
+      setCandidates(reconciliations)
       setCandidatesOpen(true)
-      loadData()
-    } catch {
-      message.error('Error al proponer coincidencias')
-    }
-  }
+      invalidateMovements()
+    },
+    onError: (error: Error) => message.error(error.message),
+  })
 
-  const handleConfirm = async (reconciliationId: number) => {
-    setConfirming(reconciliationId)
-    try {
-      await confirmMatch(reconciliationId)
+  const confirmMutation = useMutation({
+    mutationFn: confirmMatch,
+    onSuccess: (_data, reconciliationId) => {
       message.success('Coincidencia confirmada')
-      setCandidates((prev) => prev.filter((c) => c.id !== reconciliationId))
-      if (candidates.length <= 1) setCandidatesOpen(false)
-      loadData()
-    } catch {
-      message.error('Error al confirmar')
-    } finally {
-      setConfirming(null)
-    }
-  }
+      setCandidates((previous) => previous.filter((candidate) => candidate.id !== reconciliationId))
+      setCandidatesOpen(false)
+      invalidateMovements()
+    },
+    onError: (error: Error) => message.error(error.message),
+  })
 
-  const uncoveredColumns = useMemo(() => [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: 'Fecha', dataIndex: 'entry_date', key: 'entry_date' },
-    {
-      title: 'Importe',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (v: string) => fmtMoney(v),
-    },
-    { title: 'Concepto', dataIndex: 'concept', key: 'concept', ellipsis: true },
-    {
-      title: '',
-      key: 'actions',
-      width: 120,
-      render: (_: unknown, r: BankMovement) => (
-        <Button type="primary" size="small" aria-label="Proponer coincidencias" onClick={() => handlePropose(r.id)}>
-          Proponer
-        </Button>
-      ),
-    },
-  ], [])
+  const unmatchedColumns = useMemo<ColumnsType<BankMovement>>(
+    () => [
+      { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
+      { title: 'Fecha', dataIndex: 'entry_date', key: 'entry_date' },
+      {
+        title: 'Importe',
+        dataIndex: 'amount',
+        key: 'amount',
+        render: (value: string) => fmtMoney(value),
+      },
+      { title: 'Concepto', dataIndex: 'concept', key: 'concept', ellipsis: true },
+      {
+        title: '',
+        key: 'actions',
+        width: 120,
+        render: (_: unknown, record: BankMovement) => (
+          <Button
+            type="primary"
+            size="small"
+            aria-label="Proponer coincidencias"
+            loading={proposeMutation.isPending && proposeMutation.variables === record.id}
+            onClick={() => proposeMutation.mutate(record.id)}
+          >
+            Proponer
+          </Button>
+        ),
+      },
+    ],
+    [proposeMutation],
+  )
 
-  const allColumns = useMemo(() => [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: 'Fecha', dataIndex: 'entry_date', key: 'entry_date' },
-    {
-      title: 'Importe',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (v: string) => fmtMoney(v),
-    },
-    { title: 'Concepto', dataIndex: 'concept', key: 'concept', ellipsis: true },
-    {
-      title: 'Estado',
-      dataIndex: 'status',
-      key: 'status',
-      render: (v: string) => <Tag color={statusColors[v] ?? 'default'}>{statusLabels[v] ?? v}</Tag>,
-    },
-  ], [])
+  const allColumns = useMemo<ColumnsType<BankMovement>>(
+    () => [
+      { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
+      { title: 'Fecha', dataIndex: 'entry_date', key: 'entry_date' },
+      {
+        title: 'Importe',
+        dataIndex: 'amount',
+        key: 'amount',
+        render: (value: string) => fmtMoney(value),
+      },
+      { title: 'Concepto', dataIndex: 'concept', key: 'concept', ellipsis: true },
+      {
+        title: 'Estado',
+        dataIndex: 'status',
+        key: 'status',
+        render: (value: string) => (
+          <Tag color={movementStatusColors[value] ?? 'default'}>
+            {movementStatusLabels[value] ?? value}
+          </Tag>
+        ),
+      },
+    ],
+    [],
+  )
 
-  const candidateColumns = useMemo(() => [
-    { title: 'Pago ID', dataIndex: 'payment_id', key: 'payment_id' },
-    {
-      title: 'Score',
-      dataIndex: 'score',
-      key: 'score',
-      render: (v: string) => `${(parseFloat(v) * 100).toFixed(0)}%`,
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 100,
-      render: (_: unknown, r: Reconciliation) => (
-        <Button
-          type="primary"
-          size="small"
-          icon={<CheckOutlined />}
-          loading={confirming === r.id}
-          aria-label="Confirmar coincidencia"
-          onClick={() => handleConfirm(r.id)}
-        >
-          Confirmar
-        </Button>
-      ),
-    },
-  ], [confirming])
+  const candidateColumns = useMemo<ColumnsType<Reconciliation>>(
+    () => [
+      { title: 'Pago ID', dataIndex: 'payment_id', key: 'payment_id' },
+      {
+        title: 'Score',
+        dataIndex: 'score',
+        key: 'score',
+        render: (value: string) => `${(parseFloat(value) * 100).toFixed(0)}%`,
+      },
+      {
+        title: '',
+        key: 'actions',
+        width: 100,
+        render: (_: unknown, record: Reconciliation) => (
+          <Button
+            type="primary"
+            size="small"
+            icon={<CheckOutlined />}
+            loading={confirmMutation.isPending && confirmMutation.variables === record.id}
+            aria-label="Confirmar coincidencia"
+            onClick={() => confirmMutation.mutate(record.id)}
+          >
+            Confirmar
+          </Button>
+        ),
+      },
+    ],
+    [confirmMutation],
+  )
 
   const tabs = [
     {
@@ -172,7 +159,12 @@ export default function Reconciliation() {
       label: 'Importar CSV',
       children: (
         <div style={{ padding: 24 }}>
-          <Upload.Dragger accept=".csv" showUploadList={false} beforeUpload={(f) => { handleImport(f); return false }}>
+          <Upload.Dragger
+            accept=".csv"
+            showUploadList={false}
+            disabled={importMutation.isPending}
+            beforeUpload={(file) => { importMutation.mutate(file); return false }}
+          >
             <p className="ant-upload-drag-icon"><UploadOutlined /></p>
             <p className="ant-upload-text">Haz clic o arrastra un CSV bancario aquí</p>
             <p className="ant-upload-hint">Formato ING España o CSV genérico</p>
@@ -182,10 +174,10 @@ export default function Reconciliation() {
     },
     {
       key: 'unmatched',
-      label: `Sin procesar (${unmatched.length})`,
+      label: `Sin procesar (${unmatchedQuery.data?.length ?? 0})`,
       children: (
-        <Spin spinning={loading}>
-          <Table rowKey="id" columns={uncoveredColumns} dataSource={unmatched} pagination={false} locale={{ emptyText }} />
+        <Spin spinning={unmatchedQuery.isLoading}>
+          <Table rowKey="id" columns={unmatchedColumns} dataSource={unmatchedQuery.data ?? []} pagination={false} locale={{ emptyText }} />
         </Spin>
       ),
     },
@@ -193,7 +185,7 @@ export default function Reconciliation() {
       key: 'all',
       label: 'Todos',
       children: (
-        <Table rowKey="id" columns={allColumns} dataSource={allMovements} pagination={false} locale={{ emptyText }} />
+        <Table rowKey="id" columns={allColumns} dataSource={allQuery.data ?? []} pagination={false} locale={{ emptyText }} />
       ),
     },
   ]

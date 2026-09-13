@@ -26,7 +26,7 @@ export default function InvoiceGenerateForm({ open, onClose, onGenerated }: Prop
       if (err && typeof err === 'object' && 'errorFields' in err) {
         return
       }
-      message.error('Error al generar facturas')
+      message.error(err instanceof Error ? err.message : 'Error al generar facturas')
     } finally {
       setLoading(false)
     }
@@ -39,7 +39,7 @@ export default function InvoiceGenerateForm({ open, onClose, onGenerated }: Prop
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={400}
     >
       <Form form={form} layout="vertical">

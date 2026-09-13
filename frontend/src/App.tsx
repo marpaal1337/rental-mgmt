@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Spin } from 'antd'
 import AppLayout from './components/AppLayout'
 
@@ -18,59 +19,32 @@ const Tutorial = lazy(() => import('./pages/Tutorial'))
 
 const fallback = <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />
 
-function AnimatedRoutes() {
-  const location = useLocation()
-
-  return (
-    <Suspense fallback={fallback}>
-      <Routes location={location} key={location.pathname}>
-        <Route element={<AppLayout />}>
-          <Route path="/" element={
-            <div className="page-enter"><Dashboard /></div>
-          } />
-          <Route path="/leases" element={
-            <div className="page-enter"><Leases /></div>
-          } />
-          <Route path="/leases/:id" element={
-            <div className="page-enter"><LeaseDetail /></div>
-          } />
-          <Route path="/invoices" element={
-            <div className="page-enter"><Invoices /></div>
-          } />
-          <Route path="/payments" element={
-            <div className="page-enter"><Payments /></div>
-          } />
-          <Route path="/expenses" element={
-            <div className="page-enter"><Expenses /></div>
-          } />
-          <Route path="/owners" element={
-            <div className="page-enter"><Owners /></div>
-          } />
-          <Route path="/properties" element={
-            <div className="page-enter"><Properties /></div>
-          } />
-          <Route path="/units" element={
-            <div className="page-enter"><Units /></div>
-          } />
-          <Route path="/tenants" element={
-            <div className="page-enter"><Tenants /></div>
-          } />
-          <Route path="/reconciliation" element={
-            <div className="page-enter"><Reconciliation /></div>
-          } />
-          <Route path="/tutorial" element={
-            <div className="page-enter"><Tutorial /></div>
-          } />
-        </Route>
-      </Routes>
-    </Suspense>
-  )
+function page(element: ReactNode) {
+  return <div className="page-enter">{element}</div>
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AnimatedRoutes />
+      <Suspense fallback={fallback}>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={page(<Dashboard />)} />
+            <Route path="/leases" element={page(<Leases />)} />
+            <Route path="/leases/:id" element={page(<LeaseDetail />)} />
+            <Route path="/invoices" element={page(<Invoices />)} />
+            <Route path="/payments" element={page(<Payments />)} />
+            <Route path="/expenses" element={page(<Expenses />)} />
+            <Route path="/owners" element={page(<Owners />)} />
+            <Route path="/properties" element={page(<Properties />)} />
+            <Route path="/units" element={page(<Units />)} />
+            <Route path="/tenants" element={page(<Tenants />)} />
+            <Route path="/reconciliation" element={page(<Reconciliation />)} />
+            <Route path="/tutorial" element={page(<Tutorial />)} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

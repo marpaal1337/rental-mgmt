@@ -1,12 +1,19 @@
+import logging
+import re
 from datetime import date
 from decimal import Decimal
 from typing import List
 
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from app.models.invoice import Invoice, InvoiceLine
 from app.models.lease import Lease, TaxProfile
-from app.services.lease_service import LeaseService
+from app.services.lease_service import LeaseService, NoActiveRentError
+
+logger = logging.getLogger(__name__)
+
+PERIOD_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 class InvoiceGenerationError(Exception):
@@ -15,41 +22,58 @@ class InvoiceGenerationError(Exception):
 
 class InvoiceService:
     @staticmethod
+    def validate_period(period: str) -> date:
+        if not isinstance(period, str) or not PERIOD_PATTERN.match(period):
+            raise InvoiceGenerationError(
+                f"Invalid period '{period}'. Expected format YYYY-MM"
+            )
+        year, month = (int(part) for part in period.split("-"))
+        return date(year, month, 1)
+
+    @staticmethod
     def generate_monthly(session: Session, period: str) -> List[Invoice]:
-        year_str, month_str = period.split("-")
-        year = int(year_str)
-        month = int(month_str)
-        target_date = date(year, month, 1)
+        target_date = InvoiceService.validate_period(period)
 
         active_leases = session.exec(
-            select(Lease).where(
+            select(Lease)
+            .options(selectinload(Lease.unit))
+            .where(
                 Lease.is_active,
                 Lease.deleted_at.is_(None),
             )
         ).all()
 
-        invoices: List[Invoice] = []
-        for lease in active_leases:
-            existing = session.exec(
-                select(Invoice).where(
-                    Invoice.lease_id == lease.id,
+        existing_lease_ids = set(
+            session.exec(
+                select(Invoice.lease_id).where(
                     Invoice.period == period,
                     Invoice.deleted_at.is_(None),
                 )
-            ).first()
-            if existing is not None:
+            ).all()
+        )
+        tax_profiles = {
+            tp.lease_id: tp
+            for tp in session.exec(
+                select(TaxProfile).where(TaxProfile.deleted_at.is_(None))
+            ).all()
+        }
+
+        invoices: List[Invoice] = []
+        skipped: list[str] = []
+        for lease in active_leases:
+            if lease.id in existing_lease_ids:
                 continue
 
-            rent = LeaseService.get_active_rent(session, lease.id, target_date)
-
-            tax_profile = session.exec(
-                select(TaxProfile).where(
-                    TaxProfile.lease_id == lease.id,
-                    TaxProfile.deleted_at.is_(None),
-                )
-            ).first()
+            tax_profile = tax_profiles.get(lease.id)
             if tax_profile is None:
-                raise InvoiceGenerationError(f"Lease {lease.id} has no TaxProfile")
+                skipped.append(f"lease {lease.id}: no TaxProfile")
+                continue
+
+            try:
+                rent = LeaseService.get_active_rent(session, lease.id, target_date)
+            except NoActiveRentError:
+                skipped.append(f"lease {lease.id}: no active rent condition")
+                continue
 
             vat_amount = Decimal("0")
             irpf_withholding = Decimal("0")
@@ -70,7 +94,7 @@ class InvoiceService:
                 period=period,
                 lease_id=lease.id,
                 issue_date=date.today(),
-                status="draft",
+                status="issued",
                 total_base=rent,
                 total_vat=vat_amount,
                 total_irpf_withholding=irpf_withholding,
@@ -92,5 +116,13 @@ class InvoiceService:
             session.add(line)
 
             invoices.append(invoice)
+
+        if skipped:
+            logger.warning(
+                "Skipped %d leases for period %s: %s",
+                len(skipped),
+                period,
+                "; ".join(skipped),
+            )
 
         return invoices

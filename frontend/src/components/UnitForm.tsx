@@ -7,32 +7,32 @@ interface Props {
   open: boolean
   onClose: () => void
   onSaved: () => void
-  unit?: Unit | null
+  entity?: Unit | null
 }
 
-export default function UnitForm({ open, onClose, onSaved, unit }: Props) {
+export default function UnitForm({ open, onClose, onSaved, entity }: Props) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [properties, setProperties] = useState<Property[]>([])
 
-  const isEdit = !!unit
+  const isEdit = !!entity
 
   useEffect(() => {
     if (open) {
       fetchProperties()
         .then(setProperties)
         .catch(() => message.error('Error al cargar propiedades'))
-      if (unit) {
+      if (entity) {
         form.setFieldsValue({
-          ...unit,
-          area_m2: unit.area_m2 ? parseFloat(String(unit.area_m2)) : null,
-          is_active: unit.is_active,
+          ...entity,
+          area_m2: entity.area_m2 ? parseFloat(String(entity.area_m2)) : null,
+          is_active: entity.is_active,
         })
       } else {
         form.resetFields()
       }
     }
-  }, [open, unit, form])
+  }, [open, entity, form])
 
   const handleOk = async () => {
     try {
@@ -46,7 +46,7 @@ export default function UnitForm({ open, onClose, onSaved, unit }: Props) {
         is_active: values.is_active ?? true,
       }
       if (isEdit) {
-        await updateUnit(unit!.id, payload as UnitUpdatePayload)
+        await updateUnit(entity!.id, payload as UnitUpdatePayload)
       } else {
         await createUnit(payload as UnitCreatePayload)
       }
@@ -56,7 +56,7 @@ export default function UnitForm({ open, onClose, onSaved, unit }: Props) {
       if (err && typeof err === 'object' && 'errorFields' in err) {
         return
       }
-      message.error('Error al guardar la unidad')
+      message.error(err instanceof Error ? err.message : 'Error al guardar la unidad')
     } finally {
       setLoading(false)
     }
@@ -69,7 +69,7 @@ export default function UnitForm({ open, onClose, onSaved, unit }: Props) {
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       <Form form={form} layout="vertical">

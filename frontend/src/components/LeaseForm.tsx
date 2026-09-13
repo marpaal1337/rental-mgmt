@@ -8,17 +8,17 @@ interface Props {
   open: boolean
   onClose: () => void
   onSaved: () => void
-  lease?: Lease | null
+  entity?: Lease | null
 }
 
-export default function LeaseForm({ open, onClose, onSaved, lease }: Props) {
+export default function LeaseForm({ open, onClose, onSaved, entity }: Props) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [owners, setOwners] = useState<Owner[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [units, setUnits] = useState<Unit[]>([])
 
-  const isEdit = !!lease
+  const isEdit = !!entity
 
   useEffect(() => {
     if (open) {
@@ -29,17 +29,17 @@ export default function LeaseForm({ open, onClose, onSaved, lease }: Props) {
           setUnits(u)
         })
         .catch(() => message.error('Error al cargar datos de referencia'))
-      if (lease) {
+      if (entity) {
         form.setFieldsValue({
-          ...lease,
-          start_date: dayjs(lease.start_date),
-          end_date: lease.end_date ? dayjs(lease.end_date) : null,
+          ...entity,
+          start_date: dayjs(entity.start_date),
+          end_date: entity.end_date ? dayjs(entity.end_date) : null,
         })
       } else {
         form.resetFields()
       }
     }
-  }, [open, lease, form])
+  }, [open, entity, form])
 
   const handleOk = async () => {
     try {
@@ -55,7 +55,7 @@ export default function LeaseForm({ open, onClose, onSaved, lease }: Props) {
         notes: values.notes ?? null,
       }
       if (isEdit) {
-        await updateLease(lease!.id, payload)
+        await updateLease(entity!.id, payload)
       } else {
         await createLease(payload)
       }
@@ -65,7 +65,7 @@ export default function LeaseForm({ open, onClose, onSaved, lease }: Props) {
       if (err && typeof err === 'object' && 'errorFields' in err) {
         return
       }
-      message.error('Error al guardar el contrato')
+      message.error(err instanceof Error ? err.message : 'Error al guardar el contrato')
     } finally {
       setLoading(false)
     }
@@ -78,7 +78,7 @@ export default function LeaseForm({ open, onClose, onSaved, lease }: Props) {
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       <Form form={form} layout="vertical">

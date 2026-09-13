@@ -1,6 +1,7 @@
 from decimal import Decimal
 from pathlib import Path
 from typing import List
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -15,14 +16,12 @@ from reportlab.platypus import (
 )
 from sqlmodel import Session
 
+from app.config import INVOICES_DIR
 from app.models.invoice import Invoice
 
 
 class PDFGenerationError(Exception):
     """Raised when PDF generation fails."""
-
-
-INVOICES_DIR = Path("data") / "invoices"
 
 
 class PDFService:
@@ -89,21 +88,21 @@ class PDFService:
         elements.append(Spacer(1, 8 * mm))
 
         owner_lines = [
-            f"<b>Arrendador:</b> {owner.name}",
-            f"{owner.document_type}: {owner.document_number}",
-            owner.email,
-            owner.phone,
+            f"<b>Arrendador:</b> {escape(owner.name)}",
+            f"{escape(owner.document_type)}: {escape(owner.document_number)}",
+            escape(owner.email or ""),
+            escape(owner.phone or ""),
         ]
         if owner.address:
-            owner_lines.append(owner.address)
+            owner_lines.append(escape(owner.address))
         elements.append(Paragraph("<br/>".join(owner_lines), normal))
         elements.append(Spacer(1, 5 * mm))
 
         tenant_lines = [
-            f"<b>Arrendatario:</b> {tenant.name}",
-            f"{tenant.document_type}: {tenant.document_number}",
-            tenant.email,
-            tenant.phone,
+            f"<b>Arrendatario:</b> {escape(tenant.name)}",
+            f"{escape(tenant.document_type)}: {escape(tenant.document_number)}",
+            escape(tenant.email or ""),
+            escape(tenant.phone or ""),
         ]
         elements.append(Paragraph("<br/>".join(tenant_lines), normal))
         elements.append(Spacer(1, 8 * mm))
@@ -111,7 +110,7 @@ class PDFService:
         header = ["Concepto", "Base", "IVA%", "Cuota IVA", "IRPF%", "Retención"]
         body = [
             [
-                Paragraph(line.concept, normal),
+                Paragraph(escape(line.concept), normal),
                 PDFService._fmt(line.base_amount),
                 f"{line.vat_rate:.2f}%",
                 PDFService._fmt(line.vat_amount),

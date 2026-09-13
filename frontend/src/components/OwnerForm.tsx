@@ -7,24 +7,24 @@ interface Props {
   open: boolean
   onClose: () => void
   onSaved: () => void
-  owner?: Owner | null
+  entity?: Owner | null
 }
 
-export default function OwnerForm({ open, onClose, onSaved, owner }: Props) {
+export default function OwnerForm({ open, onClose, onSaved, entity }: Props) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
 
-  const isEdit = !!owner
+  const isEdit = !!entity
 
   useEffect(() => {
     if (open) {
-      if (owner) {
-        form.setFieldsValue(owner)
+      if (entity) {
+        form.setFieldsValue(entity)
       } else {
         form.resetFields()
       }
     }
-  }, [open, owner, form])
+  }, [open, entity, form])
 
   const handleOk = async () => {
     try {
@@ -39,7 +39,7 @@ export default function OwnerForm({ open, onClose, onSaved, owner }: Props) {
         address: values.address ?? null,
       }
       if (isEdit) {
-        await updateOwner(owner!.id, payload as OwnerUpdatePayload)
+        await updateOwner(entity!.id, payload as OwnerUpdatePayload)
       } else {
         await createOwner(payload)
       }
@@ -49,7 +49,7 @@ export default function OwnerForm({ open, onClose, onSaved, owner }: Props) {
       if (err && typeof err === 'object' && 'errorFields' in err) {
         return
       }
-      message.error('Error al guardar el propietario')
+      message.error(err instanceof Error ? err.message : 'Error al guardar el propietario')
     } finally {
       setLoading(false)
     }
@@ -62,7 +62,7 @@ export default function OwnerForm({ open, onClose, onSaved, owner }: Props) {
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       <Form form={form} layout="vertical">

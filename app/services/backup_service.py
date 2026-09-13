@@ -1,5 +1,5 @@
 import logging
-import shutil
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -11,25 +11,41 @@ logger = logging.getLogger(__name__)
 class BackupService:
     @staticmethod
     def _db_path() -> Path:
-        path = DATABASE_URL.replace("sqlite:///", "")
+        prefix = "sqlite:///"
+        if not DATABASE_URL.startswith(prefix):
+            raise ValueError(f"Only SQLite databases are supported: {DATABASE_URL}")
+        path = DATABASE_URL[len(prefix):]
         return Path(path).resolve()
+
+    @staticmethod
+    def backup_database(db_path: Path, backup_path: Path) -> Path:
+        if not db_path.exists():
+            raise FileNotFoundError(f"Database not found at {db_path}")
+        backup_path.parent.mkdir(parents=True, exist_ok=True)
+
+        source = sqlite3.connect(str(db_path))
+        try:
+            destination = sqlite3.connect(str(backup_path))
+            try:
+                source.backup(destination)
+                result = destination.execute("PRAGMA integrity_check").fetchone()
+                if result is None or result[0] != "ok":
+                    raise RuntimeError(f"Backup integrity check failed: {result}")
+            finally:
+                destination.close()
+        finally:
+            source.close()
+
+        logger.info("Backup created: %s", backup_path)
+        return backup_path
 
     @staticmethod
     def run_backup() -> Path:
         db_path = BackupService._db_path()
-        if not db_path.exists():
-            raise FileNotFoundError(f"Database not found at {db_path}")
-
         backup_dir = Path(BACKUP_DIR)
-        backup_dir.mkdir(parents=True, exist_ok=True)
-
         now = datetime.now(UTC)
         backup_name = f"rental_{now.strftime('%Y%m%d_%H%M%S')}.db"
-        backup_path = backup_dir / backup_name
-
-        shutil.copy2(str(db_path), str(backup_path))
-        logger.info("Backup created: %s", backup_path)
-        return backup_path
+        return BackupService.backup_database(db_path, backup_dir / backup_name)
 
     @staticmethod
     def clean_old_backups(retention_days: int = 7) -> int:

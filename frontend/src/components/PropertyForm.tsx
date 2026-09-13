@@ -7,28 +7,28 @@ interface Props {
   open: boolean
   onClose: () => void
   onSaved: () => void
-  property?: Property | null
+  entity?: Property | null
 }
 
-export default function PropertyForm({ open, onClose, onSaved, property }: Props) {
+export default function PropertyForm({ open, onClose, onSaved, entity }: Props) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [owners, setOwners] = useState<Owner[]>([])
 
-  const isEdit = !!property
+  const isEdit = !!entity
 
   useEffect(() => {
     if (open) {
       fetchOwners()
         .then(setOwners)
         .catch(() => message.error('Error al cargar propietarios'))
-      if (property) {
-        form.setFieldsValue(property)
+      if (entity) {
+        form.setFieldsValue(entity)
       } else {
         form.resetFields()
       }
     }
-  }, [open, property, form])
+  }, [open, entity, form])
 
   const handleOk = async () => {
     try {
@@ -44,7 +44,7 @@ export default function PropertyForm({ open, onClose, onSaved, property }: Props
         owner_id: values.owner_id,
       }
       if (isEdit) {
-        await updateProperty(property!.id, payload as PropertyUpdatePayload)
+        await updateProperty(entity!.id, payload as PropertyUpdatePayload)
       } else {
         await createProperty(payload)
       }
@@ -54,7 +54,7 @@ export default function PropertyForm({ open, onClose, onSaved, property }: Props
       if (err && typeof err === 'object' && 'errorFields' in err) {
         return
       }
-      message.error('Error al guardar la propiedad')
+      message.error(err instanceof Error ? err.message : 'Error al guardar la propiedad')
     } finally {
       setLoading(false)
     }
@@ -67,7 +67,7 @@ export default function PropertyForm({ open, onClose, onSaved, property }: Props
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       <Form form={form} layout="vertical">

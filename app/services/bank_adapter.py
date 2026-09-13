@@ -1,6 +1,10 @@
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Optional
+
+
+class BankImportError(Exception):
+    """Raised when a bank CSV row cannot be parsed."""
 
 
 class BankRow:
@@ -71,15 +75,14 @@ class GenericBankAdapter(BaseBankAdapter):
         rows: list[BankRow] = []
         with open(file_path, newline="", encoding=self.encoding) as f:
             for _ in range(self.skip_rows):
-                next(f)
+                next(f, None)
             reader = csv.reader(f, delimiter=self.delimiter)
-            for csv_row in reader:
+            for line_number, csv_row in enumerate(reader, start=self.skip_rows + 1):
                 if not csv_row or not csv_row[self.col_date].strip():
                     continue
-                entry_date = self._parse_date(csv_row[self.col_date])
+                entry_date = self._parse_date(csv_row[self.col_date], line_number)
                 concept = csv_row[self.col_concept].strip()
-                raw_amount = csv_row[self.col_amount].strip().replace(",", ".")
-                amount = Decimal(raw_amount)
+                amount = self._parse_amount(csv_row[self.col_amount], line_number)
                 iban = (
                     csv_row[self.col_iban].strip()
                     if self.col_iban is not None and len(csv_row) > self.col_iban
@@ -95,17 +98,42 @@ class GenericBankAdapter(BaseBankAdapter):
                         entry_date=entry_date,
                         concept=concept,
                         amount=amount,
-                        iban_origin=iban,
-                        reference=ref,
-                        raw=";".join(csv_row),
+                        iban_origin=iban or None,
+                        reference=ref or None,
+                        raw=self.delimiter.join(csv_row),
                     )
                 )
         return rows
 
-    def _parse_date(self, raw: str) -> date:
+    def _parse_date(self, raw: str, line_number: int) -> date:
         from datetime import datetime as dt
 
-        return dt.strptime(raw.strip(), self.date_format).date()
+        try:
+            return dt.strptime(raw.strip(), self.date_format).date()
+        except ValueError as e:
+            raise BankImportError(
+                f"Line {line_number}: invalid date '{raw.strip()}'"
+            ) from e
+
+    def _parse_amount(self, raw: str, line_number: int) -> Decimal:
+        cleaned = raw.strip().replace("€", "").replace(" ", "").replace("\xa0", "")
+        if not cleaned:
+            raise BankImportError(f"Line {line_number}: empty amount")
+
+        if "," in cleaned and "." in cleaned:
+            if cleaned.rfind(",") > cleaned.rfind("."):
+                cleaned = cleaned.replace(".", "").replace(",", ".")
+            else:
+                cleaned = cleaned.replace(",", "")
+        elif "," in cleaned:
+            cleaned = cleaned.replace(".", "").replace(",", ".")
+
+        try:
+            return Decimal(cleaned)
+        except InvalidOperation as e:
+            raise BankImportError(
+                f"Line {line_number}: invalid amount '{raw.strip()}'"
+            ) from e
 
 
 class INGBankAdapter(GenericBankAdapter):

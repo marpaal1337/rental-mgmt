@@ -26,14 +26,16 @@ EXPENSE_CATEGORIES = [
 class Expense(AuditMixin, table=True):
     __tablename__ = "expense"
 
-    property_id: int = Field(foreign_key="property.id", nullable=False)
-    lease_id: Optional[int] = Field(default=None, foreign_key="lease.id", nullable=True)
+    property_id: int = Field(foreign_key="property.id", nullable=False, index=True)
+    lease_id: Optional[int] = Field(
+        default=None, foreign_key="lease.id", nullable=True, index=True
+    )
     category: str = Field(max_length=50, nullable=False)
     amount: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(12, 2), nullable=False),
     )
-    expense_date: date = Field(nullable=False)
+    expense_date: date = Field(nullable=False, index=True)
     deductible: bool = Field(default=True)
     supplier: Optional[str] = Field(default=None, max_length=255)
     invoice_number: Optional[str] = Field(default=None, max_length=100)

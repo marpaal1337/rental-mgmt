@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class BankMovement(AuditMixin, table=True):
     __tablename__ = "bank_movement"
 
-    entry_date: date = Field(nullable=False)
+    entry_date: date = Field(nullable=False, index=True)
     value_date: Optional[date] = Field(default=None)
     amount: Decimal = Field(
         default=Decimal("0"),
@@ -23,7 +23,7 @@ class BankMovement(AuditMixin, table=True):
     concept: str = Field(max_length=500, nullable=False)
     iban_origin: Optional[str] = Field(default=None, max_length=34)
     reference: Optional[str] = Field(default=None, max_length=100)
-    status: str = Field(max_length=20, default="unmatched")
+    status: str = Field(max_length=20, default="unmatched", index=True)
     raw_data: Optional[str] = Field(default=None, max_length=2000)
 
     reconciliation: Optional["Reconciliation"] = Relationship(
@@ -35,8 +35,8 @@ class BankMovement(AuditMixin, table=True):
 class Reconciliation(AuditMixin, table=True):
     __tablename__ = "reconciliation"
 
-    bank_movement_id: int = Field(foreign_key="bank_movement.id", nullable=False, unique=True)
-    payment_id: int = Field(foreign_key="payment.id", nullable=False)
+    bank_movement_id: int = Field(foreign_key="bank_movement.id", nullable=False, index=True)
+    payment_id: int = Field(foreign_key="payment.id", nullable=False, index=True)
     score: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(3, 2), nullable=False),

@@ -19,7 +19,7 @@ class Property(AuditMixin, table=True):
     province: str = Field(max_length=100, nullable=False)
     zip_code: str = Field(max_length=10, nullable=False)
     cadastral_ref: Optional[str] = Field(default=None, max_length=50)
-    owner_id: int = Field(foreign_key="owner.id", nullable=False)
+    owner_id: int = Field(foreign_key="owner.id", nullable=False, index=True)
 
     owner: "Owner" = Relationship(back_populates="properties")
     units: List["Unit"] = Relationship(back_populates="property")

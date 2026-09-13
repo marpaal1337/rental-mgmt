@@ -8,7 +8,7 @@ interface Props {
   open: boolean
   onClose: () => void
   onSaved: () => void
-  payment?: Payment | null
+  entity?: Payment | null
 }
 
 const METHODS = [
@@ -18,29 +18,29 @@ const METHODS = [
   { label: 'Domiciliación', value: 'domiciliacion' },
 ]
 
-export default function PaymentForm({ open, onClose, onSaved, payment }: Props) {
+export default function PaymentForm({ open, onClose, onSaved, entity }: Props) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [invoices, setInvoices] = useState<Invoice[]>([])
 
-  const isEdit = !!payment
+  const isEdit = !!entity
 
   useEffect(() => {
     if (open) {
       fetchInvoices()
         .then(setInvoices)
         .catch(() => message.error('Error al cargar facturas'))
-      if (payment) {
+      if (entity) {
         form.setFieldsValue({
-          ...payment,
-          amount: parseFloat(payment.amount),
-          payment_date: dayjs(payment.payment_date),
+          ...entity,
+          amount: parseFloat(entity.amount),
+          payment_date: dayjs(entity.payment_date),
         })
       } else {
         form.resetFields()
       }
     }
-  }, [open, payment, form])
+  }, [open, entity, form])
 
   const handleOk = async () => {
     try {
@@ -54,7 +54,7 @@ export default function PaymentForm({ open, onClose, onSaved, payment }: Props) 
         notes: values.notes ?? null,
       }
       if (isEdit) {
-        await updatePayment(payment!.id, payload)
+        await updatePayment(entity!.id, payload)
       } else {
         await createPayment(payload)
       }
@@ -64,7 +64,7 @@ export default function PaymentForm({ open, onClose, onSaved, payment }: Props) 
       if (err && typeof err === 'object' && 'errorFields' in err) {
         return
       }
-      message.error('Error al guardar el pago')
+      message.error(err instanceof Error ? err.message : 'Error al guardar el pago')
     } finally {
       setLoading(false)
     }
@@ -77,7 +77,7 @@ export default function PaymentForm({ open, onClose, onSaved, payment }: Props) 
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={480}
     >
       <Form form={form} layout="vertical">

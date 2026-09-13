@@ -15,12 +15,14 @@ conciliar movimientos bancarios, y automatizar tareas mensuales.
 
 | Capa | Tecnología |
 |---|---|
-| Backend API | FastAPI (Python 3.11+) |
-| Frontend SPA | Vite + React 19 + TypeScript + Ant Design |
-| Base de datos | SQLite (WAL) con SQLModel + Alembic |
+| Backend API | FastAPI (Python 3.11+), rutas bajo `/api` |
+| Frontend SPA | Vite + React 19 + TypeScript + Ant Design + TanStack Query |
+| Base de datos | SQLite (WAL, claves foráneas activas) con SQLModel + Alembic |
 | Autenticación | API Key via header `X-API-Key` |
-| PDF | ReportLab |
-| Background jobs | APScheduler (auto-facturación mensual, backups) |
+| PDF | ReportLab (salida en `DATA_ROOT/data/invoices`) |
+| Background jobs | APScheduler (auto-facturación mensual, backups) + catch-up al arrancar |
+| Escritorio | pywebview sobre el mismo FastAPI local |
+| Empaquetado | PyInstaller (onedir autocontenido) + InnoSetup |
 
 ---
 
@@ -176,40 +178,54 @@ a la fecha indicada.
 
 Aplica una revisión de renta por índice (IPC, IRAV, IGC).
 
-1. Obtiene la renta vigente en la fecha indicada
-2. Calcula la nueva renta: `anterior × (1 + rate)`
-3. Crea una nueva **RentCondition** con la renta actualizada desde esa fecha
-4. Crea un registro **IndexUpdate** con todos los datos de la revisión
+1. Valida el índice (debe ser > −100 % y ≤ 50 %) y que no exista ya una
+   revisión para ese contrato y fecha
+2. Obtiene la renta vigente en la fecha indicada
+3. Calcula la nueva renta: `anterior × (1 + rate)`
+4. Crea una nueva **RentCondition** con la renta actualizada desde esa fecha
+5. Crea un registro **IndexUpdate** con todos los datos de la revisión
 
 ### 4.3 InvoiceService.generate_monthly(period)
 
-Genera facturas para todos los contratos activos en un periodo mensual dado.
-Es **idempotente**: si ya existe factura para ese lease y periodo, la salta.
+Genera facturas para todos los contratos activos en un periodo mensual dado
+(validado `YYYY-MM`). Es **idempotente**: si ya existe factura activa para ese
+lease y periodo, la salta (garantizado también por índice único en base de datos).
+
+Las facturas nacen en estado **issued** (emitida). Los contratos sin `TaxProfile`
+o sin condición de renta se omiten y se registran en el log, sin abortar el lote.
 
 ### 4.4 PDFService.render_invoice(invoice_id)
 
 Convierte una factura en un PDF listo para enviar al inquilino usando ReportLab.
-Almacena el PDF en `data/invoices/{año}/{mes}/{invoice_id}.pdf`.
+Almacena el PDF en `DATA_ROOT/data/invoices/{año}/{mes}/{invoice_id}.pdf`.
 
 ### 4.5 PaymentService.register(invoice_id, amount, date)
 
 Registra un pago sobre una factura y actualiza su estado automáticamente
-(draft → partial → paid según el total pagado).
+(issued → partial → paid según el total pagado). **Rechaza sobrepagos** que
+superen el saldo pendiente y **recalcula el estado** al editar o eliminar un pago.
 
 ### 4.6 ExpenseService
 
 Registra gastos del inmueble y ofrece resumen de rentabilidad neta:
-ingresos totales del año vs gastos totales, rentabilidad neta, desglose por categoría.
+ingresos del año (solo facturas emitidas, parciales o pagadas; excluye
+borradores y anuladas) vs gastos totales, rentabilidad neta y desglose por
+categoría.
 
 ### 4.7 ReconciliationService
 
 Importa movimientos bancarios desde CSV (adaptadores ING y genérico),
-propone coincidencias con pagos (mismo importe, fecha ±5 días, score 0.0–1.0),
-y permite confirmar/rechazar manualmente.
+**deduplica** movimientos repetidos, propone coincidencias con pagos mediante
+score (importe exacto, fecha ±5 días, coincidencia de concepto/inquilino e IBAN
+recurrente) y permite confirmar/rechazar manualmente. Se pueden proponer varios
+candidatos por movimiento; al confirmar uno, el resto se descartan.
+**Nunca se auto-confirma** una coincidencia.
 
 ### 4.8 BackupService
 
-Copia automática de `rental.db` con retención de 7 días, ejecutada vía APScheduler a las 5:00.
+Copia automática de `rental.db` con la API de backup de SQLite (segura con WAL),
+verificación `integrity_check` y retención de 7 días. Se ejecuta vía APScheduler
+a las 5:00 y también antes de cada migración al arrancar el escritorio.
 
 ---
 
@@ -234,22 +250,28 @@ Copia automática de `rental.db` con retención de 7 días, ejecutada vía APSch
 ### 5.2 Componentes reutilizables
 
 - AppLayout: sidebar con menú, header, contenido
+- CrudPage: shell genérico de listado + modal + edición (Owners, Tenants, Properties, Units, Leases, Payments)
 - LeaseForm, PaymentForm, ExpenseForm, OwnerForm, PropertyForm, UnitForm, TenantForm: modales de formulario
 - Carga diferida (React.lazy + Suspense) en todas las rutas
+- `utils/labels.ts`: etiquetas y colores compartidos (estados, métodos, categorías)
 
 ### 5.3 Funcionalidades clave
 
-- **Blob URL management**: descarga de PDF con auto-revokación
+- **TanStack Query**: caché, invalidación y estados de carga/error únicos para toda la app
+- **Manejo de errores**: interceptor Axios que extrae el `detail` de FastAPI y lo muestra al usuario
+- **Blob URL management**: descarga de PDF con auto-revocación
 - **ErrorBoundary**: captura errores de renderizado en cada página
 - **Empty states**: tablas con mensaje personalizado "No hay datos"
 - **Aria-labels**: accesibilidad en todos los icon buttons
 - **Ant Design ConfigProvider**: locale en español
+- **TypeScript estricto** y ESLint sin errores
 
 ---
 
 ## 6. API completa
 
-Todos los endpoints requieren header `X-API-Key`.
+Todos los endpoints viven bajo el prefijo `/api` (ej. `/api/leases`) y requieren
+header `X-API-Key`. La raíz `/` sirve la SPA y `/health` está fuera del prefijo.
 
 | Método | Ruta | Descripción |
 |---|---|---|
@@ -266,33 +288,41 @@ Todos los endpoints requieren header `X-API-Key`.
 | PUT | `/leases/{id}/deposit` | Crear/actualizar fianza |
 | GET | `/leases/{id}/index-updates` | Histórico revisiones IPC |
 | POST | `/leases/{id}/apply-index` | Aplicar revisión IPC |
+| DELETE | `/leases/{id}` | Baja lógica del contrato |
 | GET | `/invoices` | Listar facturas |
 | GET | `/invoices/{id}` | Obtener factura |
 | POST | `/invoices/generate` | Generar facturas mensuales |
 | GET | `/invoices/{id}/pdf` | Descargar PDF |
 | GET | `/payments` | Listar pagos |
 | POST | `/payments` | Registrar pago |
-| GET | `/expenses` | Listar gastos por propiedad |
+| PUT | `/payments/{id}` | Actualizar pago (recalcula factura) |
+| DELETE | `/payments/{id}` | Baja lógica del pago (recalcula factura) |
+| GET | `/expenses` | Listar gastos (filtro opcional `property_id` y `year`) |
 | POST | `/expenses` | Registrar gasto |
 | PUT | `/expenses/{id}` | Actualizar gasto |
+| DELETE | `/expenses/{id}` | Baja lógica del gasto |
 | GET | `/expenses/categories` | Categorías disponibles |
 | GET | `/expenses/summary` | Resumen rentabilidad |
 | GET | `/owners` | Listar propietarios |
 | POST | `/owners` | Crear propietario |
 | GET | `/owners/{id}` | Obtener propietario |
 | PUT | `/owners/{id}` | Actualizar propietario |
+| DELETE | `/owners/{id}` | Baja lógica del propietario |
 | GET | `/tenants` | Listar inquilinos |
 | POST | `/tenants` | Crear inquilino |
 | GET | `/tenants/{id}` | Obtener inquilino |
 | PUT | `/tenants/{id}` | Actualizar inquilino |
+| DELETE | `/tenants/{id}` | Baja lógica del inquilino |
 | GET | `/properties` | Listar inmuebles |
 | POST | `/properties` | Crear inmueble |
 | GET | `/properties/{id}` | Obtener inmueble |
 | PUT | `/properties/{id}` | Actualizar inmueble |
+| DELETE | `/properties/{id}` | Baja lógica del inmueble |
 | GET | `/units` | Listar unidades |
 | POST | `/units` | Crear unidad |
 | GET | `/units/{id}` | Obtener unidad |
 | PUT | `/units/{id}` | Actualizar unidad |
+| DELETE | `/units/{id}` | Baja lógica de la unidad |
 | POST | `/reconciliation/import` | Importar CSV bancario |
 | POST | `/reconciliation/{id}/propose` | Proponer coincidencias |
 | POST | `/reconciliation/confirm/{id}` | Confirmar conciliación |
@@ -329,6 +359,10 @@ cd frontend && npm run dev
 
 Abrir `http://localhost:5173` en el navegador. La API key por defecto
 (`dev-key-123`) ya está configurada en el frontend.
+
+En modo escritorio, `python -m desktop` arranca migraciones, catch-up de jobs y
+ventana nativa. Una instalación nueva arranca **sin datos**; para cargar la
+semilla de demostración hay que definir `RENTAL_MGMT_DEMO=1`.
 
 ---
 
@@ -504,13 +538,18 @@ La pantalla de inicio (`/`) muestra un resumen visual:
 |---|---|---|
 | Facturación mensual | 1er día de cada mes a las 06:00 | Genera facturas para leases activos |
 | Backup automático | Cada día a las 05:00 | Copia `rental.db` en `data/backups/`, retención 7 días |
-| Detección de impagos | 1er día de cada mes a las 07:00 | Busca facturas sin pagar con más de 30 días de antigüedad y registra EventLog |
+| Detección de impagos | Cada día a las 07:00 | Busca facturas sin pagar con más de 30 días de antigüedad y registra EventLog (una vez al día) |
+
+**Catch-up**: al arrancar el escritorio se ejecutan facturación del mes en curso
+y detección de impagos, de modo que un equipo apagado el día 1 no pierde la
+automatización.
 
 ---
 
 ## 9. Datos de semilla
 
-Ejecutar `python scripts/seed.py` (con `--clean` para reiniciar) crea:
+Ejecutar `python scripts/seed.py` (con `--clean` para reiniciar), o
+`RENTAL_MGMT_DEMO=1` al arrancar el escritorio en una base vacía, crea:
 
 | Entidad | Datos |
 |---|---|
@@ -532,28 +571,23 @@ Ejecutar `python scripts/seed.py` (con `--clean` para reiniciar) crea:
 
 ## 10. Empaquetado e instalación
 
-La aplicación se distribuye como aplicación de escritorio nativa para Windows:
+La aplicación se distribuye como aplicación de escritorio nativa para Windows
+con una única vía: **PyInstaller (onedir autocontenido) + InnoSetup**. El
+equipo destino no necesita Python instalado.
 
-### 10.1 InnoSetup (`.exe`)
-Instalador clásico con asistente gráfico. Crea acceso directo en Inicio y escritorio.
-```
-iscc build\innosetup.iss
-```
-
-### 10.2 WiX MSI (`.msi`)
-Instalador corporativo compatible con GPO y despliegue empresarial.
-```
-heat.exe dir ... → candle.exe → light.exe
-```
-
-### 10.3 Script unificado
+### 10.1 Script unificado
 ```bash
-python scripts/build_windows_installer.py           # .exe + .msi
+python scripts/build_windows_installer.py             # .exe InnoSetup + .zip
 python scripts/build_windows_installer.py --innosetup # Solo .exe
-python scripts/build_windows_installer.py --wix       # Solo .msi
+python scripts/build_windows_installer.py --zip       # Solo .zip portable
+python scripts/build_windows_installer.py --skip-frontend
 ```
 
-Flujo: npm build → PyInstaller → instalador.
+Flujo: icono → `npm run build` → PyInstaller `rental-mgmt.spec` →
+InnoSetup empaqueta `dist/rental-mgmt/`.
+
+Los datos (`data/db`, `data/backups`, `data/invoices`) se conservan al
+desinstalar (`uninsneveruninstall`).
 
 ---
 
@@ -569,4 +603,5 @@ Flujo: npm build → PyInstaller → instalador.
 - ✅ **Fase 7**: Conciliación bancaria (BankMovement, Reconciliation, ReconciliationService)
 - ✅ **Fase 8**: API REST completa (50+ endpoints) + frontend React SPA
 - ✅ **Fase 9**: Automatización (APScheduler, facturación mensual, backups, impagos)
-- ✅ **Fase 10**: Calidad (backups automáticos, soft-delete audit en todos los servicios, 122 tests, frontend con todas las páginas CRUD)
+- ✅ **Fase 10**: Calidad (backups automáticos, soft-delete audit en todos los servicios, frontend con todas las páginas CRUD)
+- ✅ **Fase 11**: Consolidación — integridad SQLite (WAL real, claves foráneas, índices, unicidad de facturas), corrección de bugs de dinero (sobrepagos, estado de facturas, conciliación multi-candidato), API bajo `/api`, catch-up de jobs, backup con `integrity_check`, empaquetado único PyInstaller + InnoSetup, frontend con TanStack Query y TypeScript estricto, 147 tests con cobertura mínima del 80 % en servicios

@@ -2,34 +2,53 @@
 
 Sistema de gestión inmobiliaria para single-user en España.
 
-## Instalación
+## Instalación (desarrollo)
 
 ```bash
-# En terminal Windows (PowerShell o CMD)
 python -m pip install -e ".[dev]"
-```
-
-## Configuración
-
-```bash
-# Copiar archivo de entorno
-copy .env.example .env
-
-# Editar .env si necesitas cambiar valores predeterminados
+cp .env.example .env
 ```
 
 ## Ejecución
 
 ```bash
-# Iniciar servidor
+# Escritorio (pywebview, arranca migraciones y servidor)
+python -m desktop
+
+# Solo API (desarrollo)
 uvicorn app.main:app --reload
 
-# Ejecutar tests
+# Tests (cobertura mínima 80% en app/services)
 pytest
 
 # Linting
 ruff check .
 ```
+
+La API vive bajo `/api` (ej. `/api/leases`). La raíz `/` sirve el frontend.
+La autenticación es una API key estática (`X-API-Key`, variable `API_KEY`).
+
+### Datos de demo
+
+En una instalación nueva la base de datos arranca vacía. Para cargar datos de
+ejemplo (propietarios, inmuebles, contratos):
+
+```bash
+RENTAL_MGMT_DEMO=1 python -m desktop
+```
+
+## Empaquetado Windows
+
+```bash
+python scripts/build_windows_installer.py             # .exe InnoSetup + .zip
+python scripts/build_windows_installer.py --innosetup # solo .exe
+python scripts/build_windows_installer.py --zip       # solo .zip portable
+```
+
+El pipeline genera el icono, compila el frontend, empaqueta con PyInstaller
+(onedir autocontenido, no requiere Python en el equipo destino) y construye el
+instalador con InnoSetup. Los datos (`data/db`, `data/backups`,
+`data/invoices`) no se eliminan al desinstalar.
 
 ## Estructura del proyecto
 
@@ -40,10 +59,13 @@ rental-mgmt/
 │   ├── services/      # Lógica de negocio
 │   ├── api/           # Routers FastAPI
 │   └── jobs/          # APScheduler jobs
+├── frontend/          # SPA Vite + React + Ant Design
 ├── data/
-│   ├── db/            # SQLite database
+│   ├── db/            # SQLite database (WAL)
+│   ├── backups/       # Backups automáticos
 │   └── invoices/      # PDFs generados
-├── templates/         # Jinja2 templates
 ├── tests/
-└── alembic/           # Migraciones
+├── alembic/           # Migraciones
+├── build/             # Configuración InnoSetup
+└── scripts/           # Build, seed, docs, icono
 ```

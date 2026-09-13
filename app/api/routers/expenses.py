@@ -20,12 +20,12 @@ router = APIRouter(
 
 @router.get("")
 def list_expenses(
-    property_id: int = Query(...),
+    property_id: Optional[int] = Query(None),
     year: Optional[int] = Query(None),
     session: Session = Depends(get_session),
 ):
     try:
-        return ExpenseService.list_by_property(session, property_id, year)
+        return ExpenseService.list_expenses(session, property_id, year)
     except ExpenseError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

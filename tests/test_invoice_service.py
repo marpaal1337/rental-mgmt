@@ -38,7 +38,7 @@ class TestGenerateMonthly:
         assert inv.total_vat == Decimal("0")
         assert inv.total_irpf_withholding == Decimal("0")
         assert inv.total == Decimal("850.00")
-        assert inv.status == "draft"
+        assert inv.status == "issued"
         assert inv.lease_id == sample_lease.id
 
     def test_local_invoice_with_taxes(self, session: Session, sample_lease):
@@ -93,7 +93,7 @@ class TestGenerateMonthly:
         all_invoices = session.exec(select(Invoice)).all()
         assert len(all_invoices) == 1
 
-    def test_leases_without_tax_profile_raises(self, session: Session, sample_lease):
+    def test_lease_without_tax_profile_is_skipped(self, session: Session, sample_lease):
         rc = RentCondition(
             lease_id=sample_lease.id,
             start_date=date(2024, 1, 1),
@@ -102,10 +102,15 @@ class TestGenerateMonthly:
         session.add(rc)
         session.commit()
 
+        invoices = InvoiceService.generate_monthly(session, "2024-06")
+
+        assert invoices == []
+
+    def test_invalid_period_raises(self, session: Session, sample_lease):
         from pytest import raises
 
-        with raises(InvoiceGenerationError):
-            InvoiceService.generate_monthly(session, "2024-06")
+        with raises(InvoiceGenerationError, match="Invalid period"):
+            InvoiceService.generate_monthly(session, "2024-13")
 
     def test_inactive_lease_ignored(self, session: Session, sample_lease):
         sample_lease.is_active = False

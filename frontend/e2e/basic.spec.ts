@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test.describe('Rental Management E2E', () => {
+test.describe('Navegación y deep links', () => {
   test('dashboard loads with stats', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('text=Dashboard')).toBeVisible()
@@ -10,59 +10,71 @@ test.describe('Rental Management E2E', () => {
     await expect(page.locator('text=Gastos este año')).toBeVisible()
   })
 
-  test('navigate to contratos', async ({ page }) => {
-    await page.goto('/')
-    await page.click('text=Contratos')
-    await expect(page).toHaveURL('/leases')
-    await expect(page.locator('text=Nuevo')).toBeVisible()
+  test('deep link to propietarios loads the page', async ({ page }) => {
+    await page.goto('/owners')
+    await expect(page.getByRole('heading', { name: 'Propietarios' }).first()).toBeVisible()
   })
 
-  test('navigate to facturas', async ({ page }) => {
-    await page.goto('/')
-    await page.click('text=Facturas')
-    await expect(page).toHaveURL('/invoices')
-    await expect(page.locator('text=Generar')).toBeVisible()
+  test('deep link to conciliación loads the page', async ({ page }) => {
+    await page.goto('/reconciliation')
+    await expect(page.getByRole('heading', { name: 'Conciliación bancaria' }).first()).toBeVisible()
   })
 
-  test('navigate to pagos', async ({ page }) => {
-    await page.goto('/')
-    await page.click('text=Pagos')
-    await expect(page).toHaveURL('/payments')
-    await expect(page.locator('text=Registrar')).toBeVisible()
+  test('unknown route redirects to dashboard', async ({ page }) => {
+    await page.goto('/ruta-inexistente')
+    await expect(page).toHaveURL('/')
   })
+})
 
-  test('navigate to gastos', async ({ page }) => {
-    await page.goto('/')
-    await page.click('text=Gastos')
-    await expect(page).toHaveURL('/expenses')
-    await expect(page.locator('text=Registrar')).toBeVisible()
+test.describe('CRUD de propietarios', () => {
+  test('create and edit an owner', async ({ page }) => {
+    await page.goto('/owners')
+    await page.getByRole('button', { name: 'Nuevo propietario' }).click()
+
+    await page.fill('#name', 'E2E Propietario')
+    await page.click('#document_type')
+    await page.click('.ant-select-item-option:has-text("DNI")')
+    await page.fill('#document_number', '99999999Z')
+    await page.fill('#email', 'e2e-owner@test.com')
+    await page.fill('#phone', '+34 600 000 099')
+    await page.getByRole('button', { name: 'Aceptar' }).click()
+
+    await expect(page.locator('text=E2E Propietario')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Editar' }).first().click()
+    await page.fill('#name', 'E2E Propietario Editado')
+    await page.getByRole('button', { name: 'Aceptar' }).click()
+
+    await expect(page.locator('text=E2E Propietario Editado')).toBeVisible()
   })
+})
 
+test.describe('Formularios', () => {
   test('open lease form and cancel', async ({ page }) => {
     await page.goto('/leases')
-    await page.click('text=Nuevo')
-    await expect(page.locator('text=Nuevo contrato')).toBeVisible()
-    await page.click('button:has-text("Cancel")')
+    await page.getByRole('button', { name: 'Nuevo contrato' }).click()
+    await expect(page.getByRole('dialog')).toContainText('Nuevo contrato')
+    await page.getByRole('button', { name: 'Cancelar' }).click()
   })
 
   test('open payment form and cancel', async ({ page }) => {
     await page.goto('/payments')
-    await page.click('text=Registrar')
-    await expect(page.locator('text=Registrar pago')).toBeVisible()
-    await page.click('button:has-text("Cancel")')
+    await page.getByRole('button', { name: 'Registrar pago' }).click()
+    await expect(page.getByRole('dialog')).toContainText('Registrar pago')
+    await page.getByRole('button', { name: 'Cancelar' }).click()
   })
 
   test('open expense form and cancel', async ({ page }) => {
     await page.goto('/expenses')
-    await page.click('text=Registrar')
-    await expect(page.locator('text=Registrar gasto')).toBeVisible()
-    await page.click('button:has-text("Cancel")')
+    await page.getByRole('button', { name: 'Registrar gasto' }).click()
+    await expect(page.getByRole('dialog')).toContainText('Registrar gasto')
+    await page.getByRole('button', { name: 'Cancelar' }).click()
   })
 
   test('open invoice generate form and cancel', async ({ page }) => {
     await page.goto('/invoices')
-    await page.click('text=Generar')
-    await expect(page.locator('text=Generar facturas')).toBeVisible()
-    await page.click('button:has-text("Cancel")')
+    await page.getByRole('button', { name: 'Generar facturas' }).click()
+    await expect(page.getByRole('dialog')).toContainText('Generar facturas')
+    await page.getByRole('button', { name: 'Cancelar' }).click()
   })
 })

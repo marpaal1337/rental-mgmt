@@ -1,21 +1,26 @@
 import axios from 'axios'
-import type { AxiosRequestConfig } from 'axios'
+import type { AxiosError } from 'axios'
 
-export function createClient(signal?: AbortSignal) {
-  const baseURL = import.meta.env.DEV ? '/api' : ''
-  return axios.create({
-    baseURL,
-    headers: {
-      'X-API-Key': import.meta.env.VITE_API_KEY ?? 'dev-key-123',
-    },
-    signal,
-  })
+const client = axios.create({
+  baseURL: '/api',
+  headers: {
+    'X-API-Key': import.meta.env.VITE_API_KEY ?? 'dev-key-123',
+  },
+})
+
+function extractMessage(error: AxiosError<{ detail?: unknown }>): string {
+  const detail = error.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0] as { msg?: string }
+    if (first?.msg) return first.msg
+  }
+  return error.message
 }
 
-const client = createClient()
-
-export function apiSignal(signal?: AbortSignal): AxiosRequestConfig {
-  return signal ? { signal } : {}
-}
+client.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<{ detail?: unknown }>) => Promise.reject(new Error(extractMessage(error))),
+)
 
 export default client

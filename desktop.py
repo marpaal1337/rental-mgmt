@@ -1,11 +1,11 @@
 """Entry point for the desktop application (pywebview native window)."""
 
 import os
-import shutil
 import sys
 import threading
 import time
-from datetime import UTC, datetime
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from uvicorn import Config
@@ -36,8 +36,6 @@ BASE_DIR = _get_root()
 DATA_DIR = _get_data_dir()
 sys.path.insert(0, str(BASE_DIR))
 
-os.environ["RENTAL_MGMT_DESKTOP"] = "1"
-
 
 def _get_db_path() -> Path:
     return DATA_DIR / "data" / "db" / "rental.db"
@@ -48,40 +46,60 @@ def _get_icon_path() -> Path | None:
     return ico if ico.exists() else None
 
 
-def run_migrations():
-    try:
-        db_path = _get_db_path()
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        print(f"  Database: {db_path}")
+def _fatal(message: str) -> None:
+    print(f"[fatal] {message}", file=sys.stderr)
+    if sys.platform == "win32":
+        try:
+            import ctypes
 
-        from alembic.config import Config
+            ctypes.windll.user32.MessageBoxW(None, message, "Rental Management", 0x10)
+        except Exception:
+            pass
+    elif sys.platform != "linux" or not os.environ.get("DISPLAY"):
+        pass
+    else:
+        try:
+            import webview
 
-        from alembic import command
-
-        alembic_ini = BASE_DIR / "alembic.ini"
-        alembic_cfg = Config(str(alembic_ini))
-        alembic_cfg.set_main_option("script_location", str(BASE_DIR / "alembic"))
-        alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
-        command.upgrade(alembic_cfg, "head")
-        return True
-    except Exception as e:
-        print(f"[migrations] Error: {e}", file=sys.stderr)
-        return False
+            webview.create_window("Rental Management", html=f"<h2>Error</h2><p>{message}</p>")
+            webview.start()
+        except Exception:
+            pass
+    raise SystemExit(1)
 
 
-def backup_if_exists():
+def run_migrations() -> None:
+    db_path = _get_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"  Database: {db_path}")
+
+    from alembic.config import Config
+
+    from alembic import command
+
+    alembic_ini = BASE_DIR / "alembic.ini"
+    alembic_cfg = Config(str(alembic_ini))
+    alembic_cfg.set_main_option("script_location", str(BASE_DIR / "alembic"))
+    alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
+    command.upgrade(alembic_cfg, "head")
+
+
+def backup_if_exists() -> None:
+    from app.services.backup_service import BackupService
+
     db_path = _get_db_path()
     if not db_path.exists():
         return
-    backup_dir = DATA_DIR / "data" / "backups"
-    backup_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    backup_path = backup_dir / f"pre-upgrade-{stamp}.db"
-    shutil.copy2(str(db_path), str(backup_path))
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    backup_path = DATA_DIR / "data" / "backups" / f"pre-upgrade-{stamp}.db"
+    BackupService.backup_database(db_path, backup_path)
     print(f"  Pre-upgrade backup: {backup_path.name}")
 
 
-def seed_if_empty():
+def seed_demo_if_enabled() -> None:
+    if os.getenv("RENTAL_MGMT_DEMO") != "1":
+        return
+
     from sqlmodel import Session, select
 
     from app.database import engine
@@ -91,40 +109,81 @@ def seed_if_empty():
     with Session(engine) as session:
         if session.exec(select(Owner)).first() is not None:
             return
-        print("  Seeding database with sample data...")
+        print("  Seeding database with demo data...")
         seed_database(session)
         session.commit()
         print("  Seed done.")
 
 
+def catch_up_jobs() -> None:
+    from app.jobs.daily_overdue import detect_overdue_invoices
+    from app.jobs.monthly_invoicing import generate_monthly_invoices
+
+    try:
+        invoices = generate_monthly_invoices()
+        if invoices:
+            print(f"  Catch-up: generated {len(invoices)} invoices")
+    except Exception as e:
+        print(f"[catch-up] Invoice generation failed: {e}", file=sys.stderr)
+
+    try:
+        overdue = detect_overdue_invoices()
+        if overdue:
+            print(f"  Catch-up: {len(overdue)} overdue invoices detected")
+    except Exception as e:
+        print(f"[catch-up] Overdue detection failed: {e}", file=sys.stderr)
+
+
+def _wait_for_server(server: Server, host: str, port: int, timeout: float = 15.0) -> bool:
+    deadline = time.monotonic() + timeout
+    health_url = f"http://{host}:{port}/health"
+    while time.monotonic() < deadline:
+        if getattr(server, "started", False):
+            try:
+                with urllib.request.urlopen(health_url, timeout=1) as response:
+                    if response.status == 200:
+                        return True
+            except (urllib.error.URLError, OSError):
+                pass
+        time.sleep(0.25)
+    return False
+
+
 def main():
     (DATA_DIR / "data" / "db").mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "data" / "backups").mkdir(parents=True, exist_ok=True)
+    (DATA_DIR / "data" / "invoices").mkdir(parents=True, exist_ok=True)
 
     port = int(os.getenv("RENTAL_PORT", "8000"))
+    host = "127.0.0.1"
     server = _ThreadServer(
         Config(
             "app.main:app",
-            host="127.0.0.1",
+            host=host,
             port=port,
             log_level="error",
             access_log=False,
         )
     )
 
-    backup_if_exists()
+    try:
+        backup_if_exists()
+        print("  Running database migrations...")
+        run_migrations()
+    except Exception as e:
+        _fatal(f"Database migration failed:\n{e}")
 
-    print("  Running database migrations...")
-    run_migrations()
-
-    seed_if_empty()
+    seed_demo_if_enabled()
+    catch_up_jobs()
 
     print("  Starting server...")
-    server_thread = threading.Thread(target=server.run)
+    server_thread = threading.Thread(target=server.run, daemon=True)
     server_thread.start()
-    time.sleep(2)
 
-    url = f"http://127.0.0.1:{port}"
+    url = f"http://{host}:{port}"
+
+    if not _wait_for_server(server, host, port):
+        _fatal(f"The server did not start on {url}. Is port {port} already in use?")
 
     try:
         import webview
@@ -144,7 +203,11 @@ def main():
         print(f"  Native window not available, opening browser at {url}")
         print("  Close the browser window and press Enter to stop the server...")
         webbrowser.open(url)
-        input()
+        try:
+            input()
+        except EOFError:
+            while server_thread.is_alive():
+                time.sleep(1)
 
     print("  Shutting down server...")
     server.should_exit = True

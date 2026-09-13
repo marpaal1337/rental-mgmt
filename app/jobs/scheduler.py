@@ -24,6 +24,8 @@ def setup_scheduler() -> None:
         id="monthly_invoicing",
         name="Generate monthly invoices",
         replace_existing=True,
+        misfire_grace_time=6 * 3600,
+        coalesce=True,
     )
 
     scheduler.add_job(
@@ -34,6 +36,8 @@ def setup_scheduler() -> None:
         id="daily_overdue",
         name="Detect overdue invoices",
         replace_existing=True,
+        misfire_grace_time=6 * 3600,
+        coalesce=True,
     )
 
     scheduler.add_job(
@@ -44,8 +48,16 @@ def setup_scheduler() -> None:
         id="daily_backup",
         name="Daily database backup",
         replace_existing=True,
+        misfire_grace_time=6 * 3600,
+        coalesce=True,
     )
 
     logger.info("APScheduler jobs registered")
     scheduler.start()
     logger.info("APScheduler started")
+
+
+def shutdown_scheduler() -> None:
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+        logger.info("APScheduler stopped")

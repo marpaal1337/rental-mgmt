@@ -61,13 +61,6 @@ export async function updateLease(id: number, payload: LeaseUpdatePayload): Prom
   return data
 }
 
-export async function fetchLeaseRent(leaseId: number, date?: string): Promise<{ lease_id: number; rent: string; date: string }> {
-  const params: Record<string, string> = {}
-  if (date) params.date = date
-  const { data } = await client.get(`/leases/${leaseId}/rent`, { params })
-  return data
-}
-
 export async function applyIndex(
   leaseId: number,
   payload: { index_rate: string; application_date: string; index_name?: string; notes?: string | null }
@@ -185,11 +178,6 @@ export async function fetchOwners(): Promise<Owner[]> {
   return data
 }
 
-export async function fetchOwner(id: number): Promise<Owner> {
-  const { data } = await client.get(`/owners/${id}`)
-  return data
-}
-
 export async function createOwner(payload: OwnerCreatePayload): Promise<Owner> {
   const { data } = await client.post('/owners', payload)
   return data
@@ -202,11 +190,6 @@ export async function updateOwner(id: number, payload: OwnerUpdatePayload): Prom
 
 export async function fetchProperties(): Promise<Property[]> {
   const { data } = await client.get('/properties')
-  return data
-}
-
-export async function fetchProperty(id: number): Promise<Property> {
-  const { data } = await client.get(`/properties/${id}`)
   return data
 }
 
@@ -225,11 +208,6 @@ export async function fetchUnits(): Promise<Unit[]> {
   return data
 }
 
-export async function fetchUnit(id: number): Promise<Unit> {
-  const { data } = await client.get(`/units/${id}`)
-  return data
-}
-
 export async function createUnit(payload: UnitCreatePayload): Promise<Unit> {
   const { data } = await client.post('/units', payload)
   return data
@@ -242,11 +220,6 @@ export async function updateUnit(id: number, payload: UnitUpdatePayload): Promis
 
 export async function fetchTenants(): Promise<Tenant[]> {
   const { data } = await client.get('/tenants')
-  return data
-}
-
-export async function fetchTenant(id: number): Promise<Tenant> {
-  const { data } = await client.get(`/tenants/${id}`)
   return data
 }
 
@@ -281,11 +254,6 @@ export async function confirmMatch(reconciliationId: number): Promise<Reconcilia
 
 export async function fetchUnmatchedMovements(): Promise<BankMovement[]> {
   const { data } = await client.get('/reconciliation/unmatched')
-  return data
-}
-
-export async function fetchProposedMovements(): Promise<BankMovement[]> {
-  const { data } = await client.get('/reconciliation/proposed')
   return data
 }
 

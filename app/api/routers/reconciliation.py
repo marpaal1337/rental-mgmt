@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app.api.deps import verify_api_key
 from app.database import get_session
 from app.models.bank import BankMovement
-from app.services.bank_adapter import INGBankAdapter
+from app.services.bank_adapter import BankImportError, INGBankAdapter
 from app.services.reconciliation_service import ReconciliationError, ReconciliationService
 
 router = APIRouter(
@@ -31,6 +31,9 @@ def import_csv(file: UploadFile, session: Session = Depends(get_session)):
         for m in movements:
             session.refresh(m)
         return movements
+    except (BankImportError, UnicodeDecodeError) as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=f"Invalid bank CSV: {e}")
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 

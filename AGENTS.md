@@ -8,13 +8,14 @@ calidad del código, y **mantener actualizada la documentación**.
 
 ## Estado actual
 
-- **Fase completada**: Fase 10 — Calidad (backups, cobertura, soft-delete audit)
-- **Próxima fase**: — (plan completado)
+- **Fase completada**: Fase 11 — Consolidación (integridad SQLite, bugs de dinero, API `/api`, packaging único, TanStack Query)
+- **Próxima fase**: Fase 12 — Fiscal/CRM (numeración legal de facturas, informes IVA/IRPF 303/190 y modelo 100, avisos de impago, plazos de fianza)
 - **Plan director**: `rental-mgmt-plan.md`
-- **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL), Alembic, reportlab, pytest, ruff
-- **Frontend**: Vite + React 19 + TypeScript + Ant Design + React Router + Axios
-- **E2E**: Playwright (chromium)
-- **Tests**: 122 tests (57 API, 65 services/sanity)
+- **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL + FK), Alembic, reportlab, pytest, ruff
+- **Frontend**: Vite + React 19 + TypeScript (strict) + Ant Design + React Router + Axios + TanStack Query
+- **E2E**: Playwright (chromium), 9 tests
+- **Tests**: 147 tests, cobertura mínima 80 % en `app/services` (actual ~97 %)
+- **Empaquetado**: PyInstaller onedir + InnoSetup (vía única)
 
 ## Documentación del proyecto
 
@@ -57,33 +58,40 @@ complete una fase, debo actualizar:
 
 ## Windows installer
 
-El proyecto soporta empaquetado para Windows mediante dos sistemas:
+Vía única de empaquetado: **PyInstaller (onedir autocontenido) + InnoSetup**.
+El equipo destino no necesita Python. El spec `rental-mgmt.spec` incluye
+`collect_submodules("app")`, `frontend/dist`, `alembic`, `alembic.ini` e
+`build/icon.ico`.
 
-| Sistema | Formato | Archivo | Cómo se compila en Windows |
-|---|---|---|---|
-| InnoSetup | `.exe` (instalador clásico) | `build/innosetup.iss` | `iscc build\innosetup.iss` |
-| WiX Toolset | `.msi` (instalador corporativo) | `build/wix/rental-mgmt.wxs` | `heat.exe` → `candle.exe` → `light.exe` |
+| Paso | Herramienta | Resultado |
+|---|---|---|
+| 1 | `scripts/generate_icon.py` | `build/icon.ico` |
+| 2 | `npm run build` | `frontend/dist/` |
+| 3 | PyInstaller | `dist/rental-mgmt/` (exe + `_internal/`) |
+| 4 | InnoSetup | `dist/rental-mgmt-setup-*.exe` |
 
 Script unificado: `scripts/build_windows_installer.py`
 ```
-python scripts/build_windows_installer.py           # Ambos instaladores
+python scripts/build_windows_installer.py             # .exe + .zip
 python scripts/build_windows_installer.py --innosetup # Solo .exe
-python scripts/build_windows_installer.py --wix       # Solo .msi
+python scripts/build_windows_installer.py --zip       # Solo .zip portable
+python scripts/build_windows_installer.py --skip-frontend
 ```
 
-Flujo: genera icono → compila frontend → InnoSetup empaqueta en instalador.
+`frontend/dist` está ignorado por git y se reconstruye siempre al empaquetar.
+InnoSetup empaqueta el contenido de `dist/rental-mgmt/` (no fuentes).
 
 ### desktop.py — flujo de arranque
 
 ```
 desktop.py
-  ├── backup_if_exists()     → copia rental.db → data/backups/pre-upgrade-*.db
-  ├── run_migrations()       → alembic upgrade head
-  ├── seed_if_empty()        → si Owner vacío, importa seed_database() de app/seeder.py
-  ├── uvicorn (log_level=error, sin access_log)
+  ├── backup_if_exists()        → backup SQLite (integrity_check) → data/backups/pre-upgrade-*.db
+  ├── run_migrations()          → alembic upgrade head (aborta con diálogo si falla)
+  ├── seed_demo_if_enabled()    → solo si RENTAL_MGMT_DEMO=1 y Owner vacío
+  ├── catch_up_jobs()           → facturación del mes en curso + detección de impagos
+  ├── uvicorn (127.0.0.1, log_level=error, sin access_log)
+  ├── poll a /health (timeout 15s) antes de abrir ventana
   └── pywebview con icon.ico o navegador
-
-run.bat llama pythonw (sin ventana de consola en Windows).
 ```
 
 ### Icono de app
@@ -100,7 +108,8 @@ Generación: `python scripts/generate_icon.py` (Pillow). Se ejecuta automáticam
 
 `seed_database(session, *, clean=False)` — función reusable que acepta un `Session` externo.
 - `scripts/seed.py` es un wrapper thin que llama a `seed_database` y gestiona `commit()`.
-- `desktop.py` la llama tras migraciones si `Owner` está vacío.
+- `desktop.py` la llama tras migraciones **solo** si `RENTAL_MGMT_DEMO=1` y `Owner` está vacío.
+  Una instalación real arranca vacía.
 
 ### Persistencia de datos en desinstalación
 
@@ -116,6 +125,12 @@ Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 
 - **IndexUpdateService.commit**: el servicio usaba `session.flush()` en lugar de `session.commit()`. La corrección fue añadir `session.commit()` + `session.refresh()` en el router (`leases.py`), no en el servicio. Esto mantiene el convenio de que los servicios solo llaman a `flush()` y los routers gestionan `commit()`.
 - **EventLog table**: existe en el modelo pero no tiene migración Alembic. `seed.py --clean` falla al intentar borrarla. Se omitió manualmente en el seed.
+- **Reconciliation UNIQUE**: `bank_movement_id` era `unique=True` y `propose_matches` insertaba varios candidatos → `IntegrityError`. Se eliminó la restricción, se limitan las propuestas persistidas y al confirmar se descartan las hermanas.
+- **Estado de factura desincronizado**: editar o borrar un pago no recalculaba `paid`/`partial`. Ahora `PaymentService.update/delete` recalculan el estado (y se rechazan sobrepagos).
+- **PDFs en CWD**: `INVOICES_DIR` era relativo; ahora sale de `DATA_ROOT` (`app/config.py`).
+- **Facturas sin `TaxProfile`**: abortaban todo el lote; ahora se omiten y se registran en el log; la unicidad `(lease_id, period)` está garantizada por índice parcial.
+- **Colisión SPA/API**: la API vivía en rutas raíz y rompía los deep links; ahora todo cuelga de `/api`.
+- **Backup inconsistente con WAL**: se usa la API de backup de SQLite + `integrity_check`.
 
 ## Convenios del proyecto
 
@@ -125,8 +140,12 @@ Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 - **Soft-delete**: `deleted_at IS NULL` para registros activos. Nunca borrar datos contables
 - **Migraciones**: toda creación/modificación de esquema vía Alembic, nunca `create_all`
 - **Transacciones**: los servicios reciben `session` externamente (injection)
-- **Tests**: usar SQLite in-memory via fixtures, sesión limpia por test
+- **Tests**: usar SQLite in-memory via fixtures, sesión limpia por test, con `foreign_keys=ON`
 - **Alembic migrations**: añadir `import sqlmodel` manualmente al generarlas (limitación de SQLModel)
+- **SQLite**: PRAGMAs `foreign_keys=ON`, `journal_mode=WAL` y `busy_timeout` en `app/database.create_db_engine`
+- **API bajo `/api`**: los routers se montan con `prefix="/api"`; el frontend usa `baseURL: '/api'`
+- **Cobertura**: `pytest` exige ≥80 % en `app/services` vía `--cov-fail-under=80`
+- **Frontend**: TanStack Query para datos (sin `useFetch` ad-hoc), TypeScript `strict`, ESLint limpio
 
 ## Estructura del proyecto
 
@@ -143,21 +162,22 @@ rental-mgmt/
 │   └── seeder.py      → Reusable seed logic (llamado por desktop.py y scripts/seed.py)
 ├── frontend/
 │   ├── src/
-│   │   ├── api/       → Axios client + endpoints
-│   │   ├── pages/     → Dashboard, Leases, Invoices, Payments, Expenses
-│   │   ├── components/→ AppLayout, LeaseForm, PaymentForm, ExpenseForm
-│   │   └── types/     → TypeScript interfaces
-│   └── e2e/           → Playwright E2E tests
+│   │   ├── api/       → Axios client, endpoints, queryKeys, queryClient
+│   │   ├── pages/     → Dashboard, Leases, Invoices, Payments, Expenses...
+│   │   ├── components/→ AppLayout, CrudPage, formularios, ErrorBoundary
+│   │   ├── types/     → TypeScript interfaces
+│   │   └── utils/     → format, labels compartidos
+│   └── e2e/           → Playwright E2E tests (9)
 ├── data/
-│   ├── db/            → SQLite database (ignorada por git)
-│   ├── backups/       → Backup automáticos (Fase 10)
+│   ├── db/            → SQLite database WAL (ignorada por git)
+│   ├── backups/       → Backups con integrity_check
 │   └── invoices/      → PDFs generados
-├── tests/             → Pytest tests
+├── tests/             → Pytest tests (147, cov ≥80 % services)
 ├── alembic/           → Migraciones
-├── scripts/           → Scripts auxiliares (doc generation, instalador, etc.)
+├── scripts/           → Build instalador, docs, icono, seed
 ├── build/
-│   ├── innosetup.iss  → InnoSetup .exe installer config
-│   └── wix/           → WiX .msi installer config
+│   └── innosetup.iss  → InnoSetup installer config
+├── rental-mgmt.spec   → PyInstaller spec (onedir)
 ├── DOCUMENTO_FUNCIONAL.md
 ├── DOCUMENTO_TECNICO.md
 └── AGENTS.md          ← Este archivo
@@ -184,3 +204,5 @@ rental-mgmt/
 9. ✅ **Fase 8** — API REST completa
 10. ✅ **Fase 9** — Automatización (APScheduler)
 11. ✅ **Fase 10** — Calidad (backups, cobertura, soft-delete audit)
+12. ✅ **Fase 11** — Consolidación (integridad SQLite, bugs de dinero, API `/api`, packaging único, TanStack Query)
+13. ⏳ **Fase 12** — Fiscal/CRM (numeración legal de facturas, informes 303/190 y modelo 100, avisos de impago, plazos de fianza)

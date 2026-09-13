@@ -7,8 +7,13 @@
 | Capa | Tecnología |
 |---|---|
 | Runtime | Python ≥ 3.11 |
-| Dependencias principales | , fastapi, uvicorn[standard], sqlmodel, alembic, apscheduler, reportlab, python-dotenv, python-multipart, pywebview, pytest, pytest-asyncio, ruff, pyinstaller |
-| Dependencias de desarrollo | pytest, pytest-asyncio, ruff, pyinstaller |
+| API | FastAPI bajo prefijo `/api` |
+| Base de datos | SQLite (WAL + foreign_keys) con SQLModel + Alembic |
+| Autenticación | API Key estática (`X-API-Key`) |
+| Frontend | Vite + React 19 + TypeScript estricto + Ant Design + TanStack Query |
+| Empaquetado | PyInstaller (onedir) + InnoSetup |
+| Dependencias principales | , fastapi, uvicorn[standard], sqlmodel, alembic, apscheduler, reportlab, python-dotenv, python-multipart, pywebview, pytest, pytest-asyncio, pytest-cov, ruff, pyinstaller, pillow |
+| Dependencias de desarrollo | pytest, pytest-asyncio, pytest-cov, ruff, pyinstaller, pillow |
 
 ## 2. Estructura del proyecto
 
@@ -21,7 +26,9 @@ rental-mgmt/
         ├── 20260531_1300_a16509918b31_add_invoice_and_invoice_line_tables.py
         ├── 20260531_1305_bc191700d28c_add_payment_table.py
         ├── 20260531_1309_e1cd76ded677_add_expense_table.py
-        └── 20260531_1311_1c44557ef4b6_add_bank_movement_and_reconciliation_.py
+        ├── 20260531_1311_1c44557ef4b6_add_bank_movement_and_reconciliation_.py
+        ├── 20260620_0256_8c8362e4c3d6_add_event_log_table.py
+        └── 20260912_1000_b7d1c9e2a4f0_add_indexes_and_integrity.py
     ├── env.py
     └── script.py.mako
 ├── app/
@@ -69,21 +76,22 @@ rental-mgmt/
     ├── config.py
     ├── database.py
     ├── main.py
-    └── seed.py
+    └── seeder.py
 ├── build/
     ├── rental-mgmt/
         ├── localpycs/
         ├── Analysis-00.toc
+        ├── COLLECT-00.toc
         ├── EXE-00.toc
         ├── PKG-00.toc
         ├── PYZ-00.pyz
         ├── PYZ-00.toc
         ├── base_library.zip
+        ├── rental-mgmt
         ├── rental-mgmt.pkg
         ├── warn-rental-mgmt.txt
         └── xref-rental-mgmt.html
-    ├── wix/
-        └── rental-mgmt.wxs
+    ├── icon.ico
     └── innosetup.iss
 ├── data/
     ├── backups/
@@ -111,15 +119,34 @@ rental-mgmt/
         ├── rental_20260531_225051.db
         ├── rental_20260531_230950.db
         ├── rental_20260531_231102.db
-        └── rental_20260531_232724.db
+        ├── rental_20260531_232724.db
+        ├── rental_20260601_180221.db
+        ├── rental_20260601_181843.db
+        ├── rental_20260602_192458.db
+        ├── rental_20260602_214055.db
+        ├── rental_20260620_005041.db
+        ├── rental_20260620_010609.db
+        ├── rental_20260912_130032.db
+        ├── rental_20260912_130331.db
+        ├── rental_20260912_130412.db
+        ├── rental_20260912_130451.db
+        ├── rental_20260912_130544.db
+        ├── rental_20260912_130604.db
+        ├── rental_20260912_130620.db
+        ├── rental_20260912_130641.db
+        ├── rental_20260912_131302.db
+        └── rental_20260912_131738.db
     ├── db/
         └── rental.db
     ├── invoices/
         ├── 2024/
             └── 06/
+        ├── 2026/
+            └── 03/
 ├── scripts/
     ├── build_windows_installer.py
     ├── generate_docs.py
+    ├── generate_icon.py
     └── seed.py
 ├── tests/
     ├── conftest.py
@@ -128,10 +155,12 @@ rental-mgmt/
     ├── test_bank_adapter.py
     ├── test_coverage_gaps.py
     ├── test_expense_service.py
+    ├── test_hardening.py
     ├── test_index_update_service.py
     ├── test_invoice_service.py
     ├── test_jobs.py
     ├── test_lease_service.py
+    ├── test_migrations.py
     ├── test_payment_service.py
     ├── test_pdf_service.py
     ├── test_reconciliation_service.py
@@ -143,13 +172,10 @@ rental-mgmt/
 ├── AGENTS.md
 ├── DOCUMENTO_FUNCIONAL.md
 ├── DOCUMENTO_TECNICO.md
-├── Dockerfile
 ├── README.md
 ├── REVISION_PLAN.md
 ├── alembic.ini
-├── build.py
 ├── desktop.py
-├── docker-compose.yml
 ├── opencode.jsonc
 ├── pyproject.toml
 ├── rental-mgmt-plan.md
@@ -410,6 +436,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 ### BackupService
 
 - **_db_path**() → `Path`
+- **backup_database**(`db_path`, `backup_path`) → `Path`
 - **run_backup**() → `Path`
 - **clean_old_backups**(`retention_days`) → `int`
 
@@ -425,7 +452,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 - **__init__**(`delimiter`, `date_format`, `encoding`, `skip_rows`, `col_date`, `col_concept`, `col_amount`, `col_iban`, `col_reference`) → `None`
 - **parse**(`file_path`) → `list[BankRow]`
-- **_parse_date**(`raw`) → `date`
+- **_parse_date**(`raw`, `line_number`) → `date`
+- **_parse_amount**(`raw`, `line_number`) → `Decimal`
 
 ### INGBankAdapter
 
@@ -434,6 +462,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 ### ExpenseService
 
 - **register**(`session`, `property_id`, `category`, `amount`, `expense_date`, `lease_id`, `deductible`, `supplier`, `invoice_number`, `notes`) → `Expense`
+- **list_expenses**(`session`, `property_id`, `year`) → `list[Expense]`
 - **list_by_property**(`session`, `property_id`, `year`) → `list[Expense]`
 - **summary**(`session`, `property_id`, `year`) → `dict`
 
@@ -443,6 +472,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ### InvoiceService
 
+- **validate_period**(`period`) → `date`
 - **generate_monthly**(`session`, `period`) → `List[Invoice]`
 
 ### LeaseService
@@ -451,7 +481,10 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ### PaymentService
 
+- **_paid_total**(`session`, `invoice_id`) → `Decimal`
 - **register**(`session`, `invoice_id`, `amount`, `payment_date`, `method`, `notes`) → `Payment`
+- **update**(`session`, `payment_id`) → `Payment`
+- **delete**(`session`, `payment_id`) → `None`
 - **_update_invoice_status**(`session`, `invoice`) → `None`
 
 ### PDFService
@@ -463,19 +496,20 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 - **import_csv**(`session`, `file_path`, `adapter`) → `list[BankMovement]`
 - **propose_matches**(`session`, `bank_movement_id`) → `list[Reconciliation]`
-- **_match_score**(`movement`, `payment`) → `Decimal`
+- **_match_score**(`movement`, `payment`, `invoice`, `tenant`, `recurring_payment_ids`) → `Decimal`
 - **confirm_match**(`session`, `reconciliation_id`) → `Reconciliation`
 - **list_unmatched**(`session`) → `list[BankMovement]`
 - **list_proposed**(`session`) → `list[BankMovement]`
 
 ## 5. Tests
 
-**Total: 120 tests**
+**Total: 143 tests**
 
 ### Fixtures
 
 - `session`
 - `client`
+- `refs`
 - `sample_lease`
 
 ### test_api.py — TestAuth
@@ -700,6 +734,68 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_summary_with_income` |  |
 | `test_summary_property_not_found_raises` |  |
 
+### test_hardening.py — TestPaymentLifecycle
+
+| Test | Descripción |
+|---|---|
+| `test_delete_payment_recomputes_invoice_status` |  |
+| `test_update_payment_amount_recomputes_status` |  |
+| `test_overpayment_rejected` |  |
+| `test_overpayment_via_update_rejected` |  |
+| `test_delete_missing_payment_raises` |  |
+| `test_update_missing_payment_raises` |  |
+
+### test_hardening.py — TestReconciliationCandidates
+
+| Test | Descripción |
+|---|---|
+| `test_multiple_candidates_do_not_crash` |  |
+| `test_confirm_removes_sibling_proposals` |  |
+| `test_repropose_after_confirm_raises` |  |
+
+### test_hardening.py — TestBankAdapter
+
+| Test | Descripción |
+|---|---|
+| `test_spanish_amount_format` |  |
+| `test_invalid_amount_raises` |  |
+| `test_invalid_date_raises` |  |
+| `test_import_dedupes_repeated_rows` |  |
+
+### test_hardening.py — TestIndexUpdateValidation
+
+| Test | Descripción |
+|---|---|
+| `test_rate_out_of_range_raises` |  |
+| `test_duplicate_application_date_raises` |  |
+
+### test_hardening.py — TestInvoiceGenerationRobustness
+
+| Test | Descripción |
+|---|---|
+| `test_skips_incomplete_lease_but_generates_others` |  |
+| `test_existing_draft_invoice_blocks_duplicate` |  |
+
+### test_hardening.py — TestExpenseSummaryIncome
+
+| Test | Descripción |
+|---|---|
+| `test_draft_and_cancelled_invoices_not_counted` |  |
+
+### test_hardening.py — TestSpaFallback
+
+| Test | Descripción |
+|---|---|
+| `test_deep_link_serves_index_and_api_still_wins` |  |
+
+### test_hardening.py — TestPaymentApiLifecycle
+
+| Test | Descripción |
+|---|---|
+| `test_delete_payment_recomputes_status_via_api` |  |
+| `test_invalid_period_returns_422` |  |
+| `test_overpayment_returns_400` |  |
+
 ### test_index_update_service.py — TestApplyIndex
 
 | Test | Descripción |
@@ -715,7 +811,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_vivienda_invoice_no_taxes` |  |
 | `test_local_invoice_with_taxes` |  |
 | `test_idempotent_does_not_duplicate` |  |
-| `test_leases_without_tax_profile_raises` |  |
+| `test_lease_without_tax_profile_is_skipped` |  |
+| `test_invalid_period_raises` |  |
 | `test_inactive_lease_ignored` |  |
 
 ### test_jobs.py — TestGenerateMonthlyInvoices
@@ -806,6 +903,10 @@ Todas las entidades heredan de `AuditMixin` que aporta:
   - Padre: `bc191700`
 - **`1c44557e`** → add bank_movement and reconciliation tables
   - Padre: `e1cd76de`
+- **`8c8362e4`** → add event_log table
+  - Padre: `1c44557e`
+- **`b7d1c9e2`** → add indexes and invoice uniqueness
+  - Padre: `8c8362e4`
 
 ```bash
 alembic upgrade head    # Aplicar pendientes
@@ -816,26 +917,23 @@ alembic history        # Ver historial
 ## 7. Comandos útiles
 
 ```bash
-pytest -v                  # Ejecutar tests
+pytest -v                  # Ejecutar tests (cobertura mínima 80% en app/services)
 ruff check .               # Lint
 ruff check --fix .         # Auto-fix
-python -m app.seed         # Cargar datos de prueba
+python scripts/seed.py     # Cargar datos de demo
+python -m desktop          # Arrancar la app de escritorio
 python scripts/generate_docs.py  # Regenerar este documento
-python build.py            # Build portable EXE (PyInstaller)
-python scripts/build_windows_installer.py  # Build Windows installer
 ```
 
-# Windows Installer
+## 8. Empaquetado Windows
 
-El proyecto soporta dos sistemas de empaquetado para Windows.
+Vía única: **PyInstaller (onedir autocontenido) + InnoSetup**. El equipo
+destino no necesita Python.
 
-### InnoSetup (.exe)
-
-Archivo: `build/innosetup.iss`
 ```bash
-iscc build\innosetup.iss
+python scripts/build_windows_installer.py             # .exe + .zip
+python scripts/build_windows_installer.py --innosetup # Solo .exe
+python scripts/build_windows_installer.py --zip       # Solo .zip
 ```
 
-### WiX Toolset (.msi)
-
-Archivo: `build/wix/rental-mgmt.wxs`
+Flujo: icono → `npm run build` → `rental-mgmt.spec` → `build/innosetup.iss`.

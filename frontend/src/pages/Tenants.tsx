@@ -1,62 +1,30 @@
-import { Button, Empty, Space, Table, Typography, Spin } from 'antd'
-import { PlusOutlined, EditOutlined } from '@ant-design/icons'
-import { useMemo, useState } from 'react'
+import type { ColumnsType } from 'antd/es/table'
 import { fetchTenants } from '../api/endpoints'
+import { queryKeys } from '../api/queryKeys'
+import CrudPage from '../components/CrudPage'
 import TenantForm from '../components/TenantForm'
-import { useFetch } from '../hooks/useFetch'
 import type { Tenant } from '../types'
 
-const emptyText = () => <Empty description="No hay inquilinos" />
+const columns: ColumnsType<Tenant> = [
+  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
+  { title: 'Nombre', dataIndex: 'name', key: 'name' },
+  { title: 'Tipo Doc.', dataIndex: 'document_type', key: 'document_type' },
+  { title: 'Número Doc.', dataIndex: 'document_number', key: 'document_number' },
+  { title: 'Email', dataIndex: 'email', key: 'email' },
+  { title: 'Teléfono', dataIndex: 'phone', key: 'phone' },
+]
 
 export default function Tenants() {
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<Tenant | null>(null)
-  const { data: tenants, loading, load } = useFetch(() => fetchTenants())
-
-  const columns = useMemo(() => [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: 'Nombre', dataIndex: 'name', key: 'name' },
-    { title: 'Tipo Doc.', dataIndex: 'document_type', key: 'document_type' },
-    { title: 'Número Doc.', dataIndex: 'document_number', key: 'document_number' },
-    { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Teléfono', dataIndex: 'phone', key: 'phone' },
-    {
-      title: '',
-      key: 'actions',
-      width: 60,
-      render: (_: unknown, r: Tenant) => (
-        <Button
-          type="link"
-          icon={<EditOutlined />}
-          aria-label="Editar inquilino"
-          onClick={() => {
-            setEditing(r)
-            setFormOpen(true)
-          }}
-        />
-      ),
-    },
-  ], [])
-
   return (
-    <>
-      <Typography.Title level={3}>
-        <Space align="center">
-          Inquilinos
-          <Button type="primary" icon={<PlusOutlined />} aria-label="Nuevo inquilino" onClick={() => { setEditing(null); setFormOpen(true) }}>
-            Nuevo
-          </Button>
-        </Space>
-      </Typography.Title>
-      <Spin spinning={loading}>
-        <Table rowKey="id" columns={columns} dataSource={tenants ?? []} pagination={false} locale={{ emptyText }} />
-      </Spin>
-      <TenantForm
-        open={formOpen}
-        onClose={() => { setFormOpen(false); setEditing(null) }}
-        onSaved={load}
-        tenant={editing}
-      />
-    </>
+    <CrudPage
+      title="Inquilinos"
+      newLabel="Nuevo inquilino"
+      emptyDescription="No hay inquilinos"
+      queryKey={queryKeys.tenants}
+      fetchFn={fetchTenants}
+      columns={columns}
+      FormComponent={TenantForm}
+      errorMessage="Error al cargar inquilinos"
+    />
   )
 }

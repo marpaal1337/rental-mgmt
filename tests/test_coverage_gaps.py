@@ -195,12 +195,14 @@ class TestReconciliationCoverage:
         movement = BankMovement(
             entry_date=date(2024, 7, 1),
             amount=Decimal("850.00"),
-            concept="1",
+            concept="Transferencia Test Tenant",
             iban_origin="ES9121000418450200051332",
             status="unmatched",
         )
         session.add(movement)
         session.commit()
 
-        score = ReconciliationService._match_score(movement, payment)
+        score = ReconciliationService._match_score(
+            movement, payment, inv, sample_lease.tenant, set()
+        )
         assert score > Decimal("0.5")

@@ -1,12 +1,15 @@
-import { useMemo } from 'react'
-import { Card, Col, Row, Spin, Typography, Empty, Tag } from 'antd'
 import {
   FileTextOutlined, HomeOutlined, MoneyCollectOutlined, ShoppingCartOutlined,
 } from '@ant-design/icons'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { useQuery } from '@tanstack/react-query'
+import { Card, Col, Empty, Row, Spin, Tag, Typography } from 'antd'
 import dayjs from 'dayjs'
-import { fetchStats, fetchInvoices, fetchExpenses, fetchPayments } from '../api/endpoints'
-import { useFetch } from '../hooks/useFetch'
+import { useMemo } from 'react'
+import type { ReactNode } from 'react'
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { fetchExpenses, fetchInvoices, fetchPayments, fetchStats } from '../api/endpoints'
+import { queryKeys } from '../api/queryKeys'
+import type { DashboardStats } from '../types'
 import { fmtMoney } from '../utils/format'
 
 const MONTH_NAMES: Record<string, string> = {
@@ -23,7 +26,19 @@ function getLast6Months(): string[] {
   return result
 }
 
-function ChartTooltip({ active, payload, label }: any) {
+interface ChartTooltipEntry {
+  name?: string
+  value?: number | string
+  color?: string
+}
+
+interface ChartTooltipProps {
+  active?: boolean
+  payload?: ChartTooltipEntry[]
+  label?: string
+}
+
+function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
@@ -35,7 +50,7 @@ function ChartTooltip({ active, payload, label }: any) {
       fontSize: 'var(--fs-sm)',
     }}>
       <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--color-text-primary)' }}>{label}</div>
-      {payload.map((entry: any) => (
+      {payload.map((entry) => (
         <div key={entry.name} style={{ color: entry.color, marginBottom: 2 }}>
           {entry.name}: {Number(entry.value).toFixed(2)} €
         </div>
@@ -44,31 +59,39 @@ function ChartTooltip({ active, payload, label }: any) {
   )
 }
 
-const GRADIENT_CARDS = [
+interface GradientCard {
+  title: string
+  value: (stats: DashboardStats | undefined) => number
+  icon: ReactNode
+  gradient: string
+  shadow: string
+}
+
+const GRADIENT_CARDS: GradientCard[] = [
   {
     title: 'Contratos activos',
-    value: (s: any) => s?.active_leases ?? 0,
+    value: (stats) => stats?.active_leases ?? 0,
     icon: <FileTextOutlined />,
     gradient: 'linear-gradient(135deg, #1A6B6B 0%, #248A8A 100%)',
     shadow: '0 4px 16px rgba(26, 107, 107, 0.25)',
   },
   {
     title: 'Facturas este mes',
-    value: (s: any) => s?.month_invoices ?? 0,
+    value: (stats) => stats?.month_invoices ?? 0,
     icon: <ShoppingCartOutlined />,
     gradient: 'linear-gradient(135deg, #C1704A 0%, #D4895E 100%)',
     shadow: '0 4px 16px rgba(193, 112, 74, 0.25)',
   },
   {
     title: 'Pagos este mes',
-    value: (s: any) => s?.month_payments ?? 0,
+    value: (stats) => stats?.month_payments ?? 0,
     icon: <MoneyCollectOutlined />,
     gradient: 'linear-gradient(135deg, #D4943A 0%, #E0A84C 100%)',
     shadow: '0 4px 16px rgba(212, 148, 58, 0.25)',
   },
   {
     title: 'Gastos este año',
-    value: (s: any) => s?.year_expenses ?? 0,
+    value: (stats) => stats?.year_expenses ?? 0,
     icon: <HomeOutlined />,
     gradient: 'linear-gradient(135deg, #6B8F3A 0%, #82A94A 100%)',
     shadow: '0 4px 16px rgba(107, 143, 58, 0.25)',
@@ -77,44 +100,50 @@ const GRADIENT_CARDS = [
 
 export default function Dashboard() {
   const currentYear = dayjs().year()
-  const { data, loading } = useFetch(async () => {
-    const [stats, invoices, expenses, payments] = await Promise.all([
-      fetchStats(),
-      fetchInvoices(),
-      fetchExpenses(undefined, currentYear),
-      fetchPayments(),
-    ])
-    return { stats, invoices, expenses, payments }
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: [...queryKeys.stats, currentYear],
+    queryFn: async () => {
+      const [stats, invoices, expenses, payments] = await Promise.all([
+        fetchStats(),
+        fetchInvoices(),
+        fetchExpenses(undefined, currentYear),
+        fetchPayments(),
+      ])
+      return { stats, invoices, expenses, payments }
+    },
   })
 
   const chartData = useMemo(() => {
     if (!data?.invoices || !data?.expenses) return []
-    const expenses = data.expenses
-    return getLast6Months().map(m => {
-      const [, monthNum] = m.split('-')
-      const income = data.invoices!
-        .filter(inv => inv.period.startsWith(m) && (inv.status === 'paid' || inv.status === 'partial'))
-        .reduce((sum, inv) => sum + Number(inv.total), 0)
-      const monthExpenses = expenses
-        .filter(exp => dayjs(exp.expense_date).format('YYYY-MM') === m)
-        .reduce((sum, exp) => sum + Number(exp.amount), 0)
+    return getLast6Months().map((month) => {
+      const [, monthNum] = month.split('-')
+      const income = data.invoices
+        .filter((invoice) => invoice.period.startsWith(month) && (invoice.status === 'paid' || invoice.status === 'partial'))
+        .reduce((sum, invoice) => sum + Number(invoice.total), 0)
+      const monthExpenses = data.expenses
+        .filter((expense) => dayjs(expense.expense_date).format('YYYY-MM') === month)
+        .reduce((sum, expense) => sum + Number(expense.amount), 0)
       return {
         month: MONTH_NAMES[monthNum] || monthNum,
         income: Math.round(income * 100) / 100,
         expenses: Math.round(monthExpenses * 100) / 100,
       }
     })
-  }, [data?.invoices, data?.expenses])
+  }, [data])
 
   const recentPayments = useMemo(() => {
     if (!data?.payments) return []
     return [...data.payments]
       .sort((a, b) => dayjs(b.payment_date).unix() - dayjs(a.payment_date).unix())
       .slice(0, 5)
-  }, [data?.payments])
+  }, [data])
 
-  if (loading) {
+  if (isLoading) {
     return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />
+  }
+
+  if (isError) {
+    return <Typography.Text type="danger">Error al cargar el panel: {(error as Error).message}</Typography.Text>
   }
 
   const stats = data?.stats
@@ -161,10 +190,10 @@ export default function Dashboard() {
             title="Ingresos vs Gastos"
             styles={{
               header: {
-                fontFamily: "var(--font-display)",
-                fontSize: "var(--fs-lg)",
-                borderBottom: "1px solid var(--color-border)",
-                padding: "16px 20px",
+                fontFamily: 'var(--font-display)',
+                fontSize: 'var(--fs-lg)',
+                borderBottom: '1px solid var(--color-border)',
+                padding: '16px 20px',
               },
               body: { padding: 20 },
             }}
@@ -174,7 +203,7 @@ export default function Dashboard() {
               height: '100%',
             }}
           >
-            {chartData.length > 0 && chartData.some(d => d.income > 0 || d.expenses > 0) ? (
+            {chartData.length > 0 && chartData.some((entry) => entry.income > 0 || entry.expenses > 0) ? (
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={chartData} barGap={4} barCategoryGap="20%">
                   <XAxis
@@ -187,7 +216,7 @@ export default function Dashboard() {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#7A736C', fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}
-                    tickFormatter={(v: number) => `${v}€`}
+                    tickFormatter={(value: number) => `${value}€`}
                   />
                   <Tooltip content={<ChartTooltip />} />
                   <Bar
@@ -219,10 +248,10 @@ export default function Dashboard() {
             title="Actividad Reciente"
             styles={{
               header: {
-                fontFamily: "var(--font-display)",
-                fontSize: "var(--fs-lg)",
-                borderBottom: "1px solid var(--color-border)",
-                padding: "16px 20px",
+                fontFamily: 'var(--font-display)',
+                fontSize: 'var(--fs-lg)',
+                borderBottom: '1px solid var(--color-border)',
+                padding: '16px 20px',
               },
               body: { padding: 20 },
             }}
@@ -234,9 +263,9 @@ export default function Dashboard() {
           >
             {recentPayments.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {recentPayments.map((p) => (
+                {recentPayments.map((payment) => (
                   <div
-                    key={p.id}
+                    key={payment.id}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -262,7 +291,7 @@ export default function Dashboard() {
                           color: 'var(--color-text-primary)',
                         }}
                       >
-                        Pago #{p.id}
+                        Pago #{payment.id}
                       </div>
                       <div
                         style={{
@@ -270,11 +299,11 @@ export default function Dashboard() {
                           color: 'var(--color-text-tertiary)',
                         }}
                       >
-                        {dayjs(p.payment_date).format('D MMM YYYY')}
+                        {dayjs(payment.payment_date).format('D MMM YYYY')}
                       </div>
                     </div>
                     <Tag color="green" style={{ marginRight: 0, borderRadius: 4, fontSize: 'var(--fs-xs)' }}>
-                      {fmtMoney(p.amount)}
+                      {fmtMoney(payment.amount)}
                     </Tag>
                   </div>
                 ))}

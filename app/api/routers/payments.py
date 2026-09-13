@@ -1,5 +1,3 @@
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
@@ -7,7 +5,11 @@ from app.api.deps import verify_api_key
 from app.api.schemas import PaymentCreate, PaymentUpdate
 from app.database import get_session
 from app.models.payment import Payment
-from app.services.payment_service import PaymentError, PaymentService
+from app.services.payment_service import (
+    PaymentError,
+    PaymentNotFoundError,
+    PaymentService,
+)
 
 router = APIRouter(
     prefix="/payments",
@@ -48,23 +50,24 @@ def update_payment(
     body: PaymentUpdate,
     session: Session = Depends(get_session),
 ):
-    payment = session.get(Payment, payment_id)
-    if payment is None or payment.deleted_at is not None:
-        raise HTTPException(status_code=404, detail="Payment not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(payment, field, value)
-    payment.updated_at = datetime.now(UTC)
-    session.add(payment)
-    session.commit()
-    session.refresh(payment)
-    return payment
+    try:
+        payment = PaymentService.update(
+            session, payment_id, **body.model_dump(exclude_unset=True)
+        )
+        session.commit()
+        session.refresh(payment)
+        return payment
+    except PaymentNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PaymentError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{payment_id}")
 def delete_payment(payment_id: int, session: Session = Depends(get_session)):
-    payment = session.get(Payment, payment_id)
-    if payment is None or payment.deleted_at is not None:
-        raise HTTPException(status_code=404, detail="Payment not found")
-    payment.deleted_at = datetime.now(UTC)
-    session.commit()
-    return {"detail": "Payment deleted"}
+    try:
+        PaymentService.delete(session, payment_id)
+        session.commit()
+        return {"detail": "Payment deleted"}
+    except PaymentNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))

@@ -25,7 +25,7 @@ BUNDLE_ROOT = _get_bundle_root()
 DATA_ROOT = _get_data_root()
 
 
-def _resolve_path(value: str, default_rel: str) -> str:
+def _resolve_path(value: str) -> str:
     if value.startswith("sqlite:///"):
         db_path = value[len("sqlite:///"):]
         if not Path(db_path).is_absolute():
@@ -36,8 +36,7 @@ def _resolve_path(value: str, default_rel: str) -> str:
 
 
 DATABASE_URL: str = _resolve_path(
-    os.getenv("DATABASE_URL", f"sqlite:///{DATA_ROOT / 'data/db/rental.db'}"),
-    "data/db/rental.db",
+    os.getenv("DATABASE_URL", f"sqlite:///{DATA_ROOT / 'data/db/rental.db'}")
 )
 BACKUP_DIR: str = os.getenv(
     "BACKUP_DIR",
@@ -46,5 +45,11 @@ BACKUP_DIR: str = os.getenv(
 if not os.path.isabs(BACKUP_DIR):
     BACKUP_DIR = str(DATA_ROOT / BACKUP_DIR)
 
-SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production")
+INVOICES_DIR: Path = Path(
+    os.getenv("INVOICES_DIR", str(DATA_ROOT / "data/invoices"))
+)
+if not INVOICES_DIR.is_absolute():
+    INVOICES_DIR = DATA_ROOT / INVOICES_DIR
+
 API_KEY: str = os.getenv("API_KEY", "dev-key-123")
+ENABLE_SCHEDULER: bool = os.getenv("ENABLE_SCHEDULER", "1") != "0"

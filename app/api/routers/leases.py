@@ -3,7 +3,6 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from app.api.deps import verify_api_key
@@ -17,7 +16,10 @@ from app.api.schemas import (
 )
 from app.database import get_session
 from app.models.lease import Deposit, IndexUpdate, Lease, RentCondition, TaxProfile
-from app.services.index_update_service import IndexUpdateService
+from app.models.owner import Owner
+from app.models.tenant import Tenant
+from app.models.unit import Unit
+from app.services.index_update_service import IndexUpdateError, IndexUpdateService
 from app.services.lease_service import LeaseService, NoActiveRentError
 
 router = APIRouter(
@@ -29,15 +31,22 @@ router = APIRouter(
 
 @router.get("")
 def list_leases(session: Session = Depends(get_session)):
-    return session.exec(
-        select(Lease)
-        .options(
-            selectinload(Lease.tenant),
-            selectinload(Lease.owner),
-            selectinload(Lease.unit),
-        )
+    rows = session.exec(
+        select(Lease, Tenant, Owner, Unit)
+        .join(Tenant, Lease.tenant_id == Tenant.id)
+        .join(Owner, Lease.owner_id == Owner.id)
+        .join(Unit, Lease.unit_id == Unit.id)
         .where(Lease.deleted_at.is_(None))
     ).all()
+    return [
+        {
+            **lease.model_dump(),
+            "tenant_name": tenant.name,
+            "owner_name": owner.name,
+            "unit_name": unit.name,
+        }
+        for lease, tenant, owner, unit in rows
+    ]
 
 
 @router.get("/{lease_id}")
@@ -125,6 +134,8 @@ def apply_index(
         }
     except NoActiveRentError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except IndexUpdateError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def _get_lease_or_404(session: Session, lease_id: int) -> Lease:

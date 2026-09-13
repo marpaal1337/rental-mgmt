@@ -73,7 +73,7 @@ export default function ExpenseForm({ open, onClose, onSaved, expense }: Props) 
       if (err && typeof err === 'object' && 'errorFields' in err) {
         return
       }
-      message.error('Error al guardar el gasto')
+      message.error(err instanceof Error ? err.message : 'Error al guardar el gasto')
     } finally {
       setLoading(false)
     }
@@ -86,7 +86,7 @@ export default function ExpenseForm({ open, onClose, onSaved, expense }: Props) 
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={480}
     >
       <Form form={form} layout="vertical">

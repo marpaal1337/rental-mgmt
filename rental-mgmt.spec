@@ -1,32 +1,26 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec for rental-mgmt (onedir mode).
 
-Produces dist/rental-mgmt/ — directory with EXE + all dependencies.
+Produces dist/rental-mgmt/ — directory with the EXE and all dependencies.
 """
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-import os
-import platform
 from pathlib import Path
 
 BASE_DIR = Path(SPECPATH).resolve()
 
 datas = [
-    (str(BASE_DIR / "frontend" / "dist" / "assets"), "frontend/dist/assets"),
-    (str(BASE_DIR / "frontend" / "dist" / "index.html"), "frontend/dist"),
+    (str(BASE_DIR / "frontend" / "dist"), "frontend/dist"),
     (str(BASE_DIR / "alembic"), "alembic"),
     (str(BASE_DIR / "alembic.ini"), "."),
+    (str(BASE_DIR / "build" / "icon.ico"), "build"),
 ]
 datas += collect_data_files("alembic")
 datas += collect_data_files("sqlmodel")
 
-binaries = []
-if platform.system() == "Linux":
-    libpython = "/usr/lib/x86_64-linux-gnu/libpython3.12.so.1"
-    if os.path.exists(libpython):
-        binaries.append((libpython, "."))
-
-hidden_imports = [
+hidden_imports = collect_submodules("app")
+hidden_imports += collect_submodules("webview")
+hidden_imports += [
     "alembic", "alembic.config", "alembic.command", "alembic.util",
     "sqlmodel",
     "uvicorn", "uvicorn.loggers", "uvicorn.loops", "uvicorn.loops.auto",
@@ -40,7 +34,6 @@ hidden_imports = [
     "starlette.exceptions", "starlette.responses",
     "pydantic", "pydantic.fields",
     "yaml",
-    "webview", "webview.js",
     "apscheduler", "apscheduler.triggers", "apscheduler.triggers.cron",
     "apscheduler.triggers.interval", "apscheduler.schedulers",
     "apscheduler.schedulers.background",
@@ -51,7 +44,7 @@ hidden_imports = [
 a = Analysis(
     ["desktop.py"],
     pathex=[str(BASE_DIR)],
-    binaries=binaries,
+    binaries=[],
     datas=datas,
     hiddenimports=hidden_imports,
     hookspath=[],
@@ -73,7 +66,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

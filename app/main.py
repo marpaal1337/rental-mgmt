@@ -16,30 +16,36 @@ from app.api.routers import (
     tenants,
     units,
 )
-from app.config import BUNDLE_ROOT
-from app.jobs.scheduler import setup_scheduler
+from app.config import BUNDLE_ROOT, ENABLE_SCHEDULER
+from app.jobs.scheduler import setup_scheduler, shutdown_scheduler
 
 FRONTEND_DIR = BUNDLE_ROOT / "frontend" / "dist"
+API_PREFIX = "/api"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_scheduler()
-    yield
+    if ENABLE_SCHEDULER:
+        setup_scheduler()
+    try:
+        yield
+    finally:
+        if ENABLE_SCHEDULER:
+            shutdown_scheduler()
 
 
 app = FastAPI(title="Rental Management System", lifespan=lifespan)
 
-app.include_router(leases.router)
-app.include_router(invoices.router)
-app.include_router(payments.router)
-app.include_router(expenses.router)
-app.include_router(owners.router)
-app.include_router(tenants.router)
-app.include_router(properties.router)
-app.include_router(units.router)
-app.include_router(reconciliation.router)
-app.include_router(stats.router)
+app.include_router(leases.router, prefix=API_PREFIX)
+app.include_router(invoices.router, prefix=API_PREFIX)
+app.include_router(payments.router, prefix=API_PREFIX)
+app.include_router(expenses.router, prefix=API_PREFIX)
+app.include_router(owners.router, prefix=API_PREFIX)
+app.include_router(tenants.router, prefix=API_PREFIX)
+app.include_router(properties.router, prefix=API_PREFIX)
+app.include_router(units.router, prefix=API_PREFIX)
+app.include_router(reconciliation.router, prefix=API_PREFIX)
+app.include_router(stats.router, prefix=API_PREFIX)
 
 
 @app.get("/")
@@ -59,18 +65,16 @@ async def health():
 if FRONTEND_DIR.is_dir():
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
 
-    API_PREFIXES = (
-        "/leases", "/invoices", "/payments", "/expenses",
-        "/owners", "/tenants", "/properties", "/units",
-        "/reconciliation", "/stats",
-    )
 
-    @app.middleware("http")
-    async def spa_middleware(request, call_next):
-        response = await call_next(request)
-        if response.status_code == 404:
-            if not request.url.path.startswith(API_PREFIXES):
-                index = FRONTEND_DIR / "index.html"
-                if index.is_file():
-                    return FileResponse(str(index))
-        return response
+@app.middleware("http")
+async def spa_middleware(request, call_next):
+    response = await call_next(request)
+    if response.status_code == 404 and not request.url.path.startswith(API_PREFIX):
+        frontend_root = FRONTEND_DIR.resolve()
+        candidate = (FRONTEND_DIR / request.url.path.lstrip("/")).resolve()
+        if candidate.is_file() and candidate.is_relative_to(frontend_root):
+            return FileResponse(str(candidate))
+        index = FRONTEND_DIR / "index.html"
+        if index.is_file():
+            return FileResponse(str(index))
+    return response

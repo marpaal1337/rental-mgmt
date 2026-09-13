@@ -2,10 +2,16 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.models.lease import IndexUpdate, Lease, RentCondition
 from app.services.lease_service import LeaseService, NoActiveRentError
+
+MAX_INDEX_RATE = Decimal("0.5")
+
+
+class IndexUpdateError(Exception):
+    """Raised when an index update cannot be applied."""
 
 
 class IndexUpdateService:
@@ -21,6 +27,23 @@ class IndexUpdateService:
         lease = session.get(Lease, lease_id)
         if lease is None or lease.deleted_at is not None:
             raise NoActiveRentError(f"Lease {lease_id} not found")
+
+        if index_rate <= Decimal("-1") or index_rate > MAX_INDEX_RATE:
+            raise IndexUpdateError(
+                f"Index rate {index_rate} out of range (must be > -1 and <= {MAX_INDEX_RATE})"
+            )
+
+        existing = session.exec(
+            select(IndexUpdate).where(
+                IndexUpdate.lease_id == lease_id,
+                IndexUpdate.application_date == application_date,
+                IndexUpdate.deleted_at.is_(None),
+            )
+        ).first()
+        if existing is not None:
+            raise IndexUpdateError(
+                f"An index update for lease {lease_id} on {application_date} already exists"
+            )
 
         previous_rent = LeaseService.get_active_rent(session, lease_id, application_date)
 

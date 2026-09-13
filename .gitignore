@@ -3,10 +3,9 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 /dist/
-build/
+frontend/dist/
+build/*
 !build/innosetup.iss
-!build/run.bat
-!build/icon.ico
 
 # Virtual environment
 venv/
@@ -31,6 +30,8 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 .ruff_cache/
+frontend/test-results/
+frontend/playwright-report/
 
 # Alembic
 alembic/versions/*.pyc

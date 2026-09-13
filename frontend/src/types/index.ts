@@ -46,6 +46,9 @@ export interface Lease {
   end_date: string | null
   is_active: boolean
   notes: string | null
+  tenant_name?: string
+  owner_name?: string
+  unit_name?: string
   tenant?: Tenant
   owner?: Owner
   unit?: Unit

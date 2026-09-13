@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -50,14 +50,22 @@ def detect_overdue_invoices(
             )
 
         if overdue:
-            log = EventLog(
-                event_type="overdue_detection",
-                description=f"Detected {len(overdue)} overdue invoices",
-                details=f"count={len(overdue)}, date={today.isoformat()}",
-                level="warning",
-            )
-            session.add(log)
-            session.commit()
+            today_start = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
+            already_logged = session.exec(
+                select(EventLog).where(
+                    EventLog.event_type == "overdue_detection",
+                    EventLog.created_at >= today_start,
+                )
+            ).first()
+            if already_logged is None:
+                log = EventLog(
+                    event_type="overdue_detection",
+                    description=f"Detected {len(overdue)} overdue invoices",
+                    details=f"count={len(overdue)}, date={today.isoformat()}",
+                    level="warning",
+                )
+                session.add(log)
+                session.commit()
 
         return overdue
     finally:

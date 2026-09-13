@@ -15,12 +15,12 @@ if TYPE_CHECKING:
 class Payment(AuditMixin, table=True):
     __tablename__ = "payment"
 
-    invoice_id: int = Field(foreign_key="invoice.id", nullable=False)
+    invoice_id: int = Field(foreign_key="invoice.id", nullable=False, index=True)
     amount: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(12, 2), nullable=False),
     )
-    payment_date: date = Field(nullable=False)
+    payment_date: date = Field(nullable=False, index=True)
     method: str = Field(max_length=50, nullable=False)
     notes: Optional[str] = Field(default=None, max_length=1000)
 

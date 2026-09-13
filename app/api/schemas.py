@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LeaseCreate(BaseModel):
@@ -15,12 +15,12 @@ class LeaseCreate(BaseModel):
 
 
 class InvoiceGenerateRequest(BaseModel):
-    period: str
+    period: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$", examples=["2024-06"])
 
 
 class PaymentCreate(BaseModel):
     invoice_id: int
-    amount: Decimal
+    amount: Decimal = Field(gt=0)
     payment_date: date
     method: str = "transferencia"
     notes: Optional[str] = None
@@ -36,11 +36,6 @@ class ExpenseCreate(BaseModel):
     supplier: Optional[str] = None
     invoice_number: Optional[str] = None
     notes: Optional[str] = None
-
-
-class ExpenseSummaryParams(BaseModel):
-    property_id: int
-    year: int
 
 
 class IndexApplyRequest(BaseModel):
@@ -73,7 +68,7 @@ class ExpenseUpdate(BaseModel):
 
 
 class PaymentUpdate(BaseModel):
-    amount: Optional[Decimal] = None
+    amount: Optional[Decimal] = Field(default=None, gt=0)
     payment_date: Optional[date] = None
     method: Optional[str] = None
     notes: Optional[str] = None
@@ -174,7 +169,3 @@ class DepositUpdate(BaseModel):
     deposit_date: Optional[date] = None
     agency: Optional[str] = None
     return_date: Optional[date] = None
-
-
-class RentQueryParams(BaseModel):
-    date: Optional[date] = None

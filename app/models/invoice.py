@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Index, Numeric, text
 from sqlmodel import Field, Relationship
 
 from app.models.base import AuditMixin
@@ -14,11 +14,20 @@ if TYPE_CHECKING:
 
 class Invoice(AuditMixin, table=True):
     __tablename__ = "invoice"
+    __table_args__ = (
+        Index(
+            "uq_invoice_lease_period_active",
+            "lease_id",
+            "period",
+            unique=True,
+            sqlite_where=text("deleted_at IS NULL"),
+        ),
+    )
 
-    period: str = Field(max_length=7, nullable=False)
-    lease_id: int = Field(foreign_key="lease.id", nullable=False)
+    period: str = Field(max_length=7, nullable=False, index=True)
+    lease_id: int = Field(foreign_key="lease.id", nullable=False, index=True)
     issue_date: date = Field(nullable=False)
-    status: str = Field(max_length=20, default="draft")
+    status: str = Field(max_length=20, default="draft", index=True)
     total_base: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(12, 2), nullable=False),
@@ -45,7 +54,7 @@ class Invoice(AuditMixin, table=True):
 class InvoiceLine(AuditMixin, table=True):
     __tablename__ = "invoice_line"
 
-    invoice_id: int = Field(foreign_key="invoice.id", nullable=False)
+    invoice_id: int = Field(foreign_key="invoice.id", nullable=False, index=True)
     concept: str = Field(max_length=500, nullable=False)
     base_amount: Decimal = Field(
         default=Decimal("0"),

@@ -7,24 +7,24 @@ interface Props {
   open: boolean
   onClose: () => void
   onSaved: () => void
-  tenant?: Tenant | null
+  entity?: Tenant | null
 }
 
-export default function TenantForm({ open, onClose, onSaved, tenant }: Props) {
+export default function TenantForm({ open, onClose, onSaved, entity }: Props) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
 
-  const isEdit = !!tenant
+  const isEdit = !!entity
 
   useEffect(() => {
     if (open) {
-      if (tenant) {
-        form.setFieldsValue(tenant)
+      if (entity) {
+        form.setFieldsValue(entity)
       } else {
         form.resetFields()
       }
     }
-  }, [open, tenant, form])
+  }, [open, entity, form])
 
   const handleOk = async () => {
     try {
@@ -38,7 +38,7 @@ export default function TenantForm({ open, onClose, onSaved, tenant }: Props) {
         phone: values.phone,
       }
       if (isEdit) {
-        await updateTenant(tenant!.id, payload as TenantUpdatePayload)
+        await updateTenant(entity!.id, payload as TenantUpdatePayload)
       } else {
         await createTenant(payload as TenantCreatePayload)
       }
@@ -48,7 +48,7 @@ export default function TenantForm({ open, onClose, onSaved, tenant }: Props) {
       if (err && typeof err === 'object' && 'errorFields' in err) {
         return
       }
-      message.error('Error al guardar el inquilino')
+      message.error(err instanceof Error ? err.message : 'Error al guardar el inquilino')
     } finally {
       setLoading(false)
     }
@@ -61,7 +61,7 @@ export default function TenantForm({ open, onClose, onSaved, tenant }: Props) {
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       <Form form={form} layout="vertical">
