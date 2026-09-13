@@ -15,7 +15,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        `sh -c "rm -f ${E2E_DB} && ` +
+        `sh -c "rm -f ${E2E_DB} ${E2E_DB}-wal ${E2E_DB}-shm && ` +
         `DATABASE_URL=sqlite:///${E2E_DB} .venv/bin/python -m alembic upgrade head && ` +
         `DATABASE_URL=sqlite:///${E2E_DB} .venv/bin/python -m uvicorn app.main:app --port ${API_PORT}"`,
       cwd: '..',

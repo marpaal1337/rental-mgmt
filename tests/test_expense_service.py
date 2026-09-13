@@ -100,6 +100,85 @@ class TestRegister:
             )
 
 
+class TestVatHandling:
+    def test_register_computes_vat_from_total(
+        self, session: Session, sample_lease: Lease
+    ):
+        prop = session.get(Property, sample_lease.unit.property_id)
+        expense = ExpenseService.register(
+            session,
+            prop.id,
+            "supplies",
+            Decimal("121.00"),
+            date(2024, 6, 1),
+            vat_rate=Decimal("21"),
+        )
+
+        assert expense.vat_rate == Decimal("21")
+        assert expense.vat_amount == Decimal("21.00")
+
+    def test_register_without_vat(self, session: Session, sample_lease: Lease):
+        prop = session.get(Property, sample_lease.unit.property_id)
+        expense = ExpenseService.register(
+            session,
+            prop.id,
+            "community",
+            Decimal("85.50"),
+            date(2024, 6, 1),
+        )
+
+        assert expense.vat_rate == Decimal("0")
+        assert expense.vat_amount == Decimal("0")
+
+    def test_register_invalid_vat_rate_raises(
+        self, session: Session, sample_lease: Lease
+    ):
+        from pytest import raises
+
+        prop = session.get(Property, sample_lease.unit.property_id)
+        with raises(ExpenseError, match="VAT rate"):
+            ExpenseService.register(
+                session,
+                prop.id,
+                "community",
+                Decimal("100"),
+                date(2024, 1, 1),
+                vat_rate=Decimal("150"),
+            )
+
+    def test_update_recomputes_vat(self, session: Session, sample_lease: Lease):
+        prop = session.get(Property, sample_lease.unit.property_id)
+        expense = ExpenseService.register(
+            session,
+            prop.id,
+            "supplies",
+            Decimal("121.00"),
+            date(2024, 6, 1),
+            vat_rate=Decimal("21"),
+        )
+
+        updated = ExpenseService.update(session, expense.id, amount=Decimal("242.00"))
+        assert updated.vat_amount == Decimal("42.00")
+
+        updated = ExpenseService.update(session, expense.id, vat_rate=Decimal("10"))
+        assert updated.vat_amount == Decimal("22.00")
+
+    def test_update_validations(self, session: Session, sample_lease: Lease):
+        from pytest import raises
+
+        prop = session.get(Property, sample_lease.unit.property_id)
+        expense = ExpenseService.register(
+            session, prop.id, "community", Decimal("100"), date(2024, 6, 1)
+        )
+
+        with raises(ExpenseError, match="not found"):
+            ExpenseService.update(session, 999, amount=Decimal("10"))
+        with raises(ExpenseError, match="Invalid category"):
+            ExpenseService.update(session, expense.id, category="inventado")
+        with raises(ExpenseError, match="Amount must be positive"):
+            ExpenseService.update(session, expense.id, amount=Decimal("0"))
+
+
 class TestListByProperty:
     def test_list_by_property(self, session: Session, sample_lease: Lease):
         prop = session.get(Property, sample_lease.unit.property_id)

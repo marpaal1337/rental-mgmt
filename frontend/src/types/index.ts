@@ -105,6 +105,8 @@ export interface Expense {
   lease_id: number | null
   category: string
   amount: string
+  vat_rate: string
+  vat_amount: string
   expense_date: string
   deductible: boolean
   supplier: string | null
@@ -163,6 +165,7 @@ export interface ExpenseCreatePayload {
   supplier?: string | null
   invoice_number?: string | null
   notes?: string | null
+  vat_rate?: string | null
 }
 
 export interface ExpenseUpdatePayload {
@@ -175,6 +178,7 @@ export interface ExpenseUpdatePayload {
   supplier?: string | null
   invoice_number?: string | null
   notes?: string | null
+  vat_rate?: string | null
 }
 
 export interface InvoiceGeneratePayload {
@@ -347,4 +351,74 @@ export interface ExpenseSummary {
   non_deductible_expenses: string
   net_profitability: string
   by_category: Record<string, string>
+}
+
+export interface FiscalVatRow {
+  vat_rate: string
+  base: string
+  vat: string
+}
+
+export interface FiscalVatReport {
+  year: number
+  quarter: number
+  label: string
+  date_from: string
+  date_to: string
+  criteria: string
+  output: FiscalVatRow[]
+  exempt: { base: string }
+  input: FiscalVatRow[]
+  totals: {
+    output_base: string
+    output_vat: string
+    exempt_base: string
+    input_base: string
+    input_vat: string
+    vat_due: string
+  }
+}
+
+export interface FiscalWithholdingRow {
+  recipient_name: string
+  recipient_document_type: string | null
+  recipient_document_number: string | null
+  invoice_count: number
+  base: string
+  withholding: string
+}
+
+export interface FiscalWithholdingsReport {
+  year: number
+  criteria: string
+  rows: FiscalWithholdingRow[]
+  totals: {
+    base: string
+    withholding: string
+  }
+}
+
+export interface FiscalIncomeRow {
+  property_id: number
+  property_name: string
+  owner_id: number
+  owner_name: string
+  invoice_count: number
+  gross_income: string
+  deductible_expenses: string
+  non_deductible_expenses: string
+  net_income: string
+  by_category: Record<string, string>
+}
+
+export interface FiscalIncomeReport {
+  year: number
+  criteria: string
+  rows: FiscalIncomeRow[]
+  totals: {
+    gross_income: string
+    deductible_expenses: string
+    non_deductible_expenses: string
+    net_income: string
+  }
 }

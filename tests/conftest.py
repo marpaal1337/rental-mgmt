@@ -93,7 +93,12 @@ def refs(client: TestClient) -> dict[str, int]:
         },
         headers=headers,
     ).json()["id"]
-    return {"owner_id": owner_id, "unit_id": unit_id, "tenant_id": tenant_id}
+    return {
+        "owner_id": owner_id,
+        "property_id": property_id,
+        "unit_id": unit_id,
+        "tenant_id": tenant_id,
+    }
 
 
 @pytest.fixture

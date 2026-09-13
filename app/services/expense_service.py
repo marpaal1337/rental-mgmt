@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -11,6 +11,7 @@ from app.models.property import Property
 from app.models.unit import Unit
 
 INCOME_STATUSES = ("issued", "partial", "paid")
+CENT = Decimal("0.01")
 
 
 class ExpenseError(Exception):
@@ -19,6 +20,28 @@ class ExpenseError(Exception):
 
 class ExpenseService:
     CATEGORIES = EXPENSE_CATEGORIES
+
+    @staticmethod
+    def _validate_property(session: Session, property_id: int) -> None:
+        prop = session.get(Property, property_id)
+        if prop is None or prop.deleted_at is not None:
+            raise ExpenseError(f"Property {property_id} not found")
+
+    @staticmethod
+    def _validate_lease(session: Session, lease_id: int) -> None:
+        lea = session.get(Lease, lease_id)
+        if lea is None or lea.deleted_at is not None:
+            raise ExpenseError(f"Lease {lease_id} not found")
+
+    @staticmethod
+    def _compute_vat_amount(amount: Decimal, vat_rate: Optional[Decimal]) -> Decimal:
+        """Calcula la cuota de IVA incluida en un importe total."""
+        rate = vat_rate if vat_rate is not None else Decimal("0")
+        if rate < 0 or rate > Decimal("100"):
+            raise ExpenseError("VAT rate must be between 0 and 100")
+        if rate == 0:
+            return Decimal("0")
+        return (amount * rate / (Decimal("100") + rate)).quantize(CENT)
 
     @staticmethod
     def register(
@@ -32,10 +55,9 @@ class ExpenseService:
         supplier: Optional[str] = None,
         invoice_number: Optional[str] = None,
         notes: Optional[str] = None,
+        vat_rate: Optional[Decimal] = None,
     ) -> Expense:
-        prop = session.get(Property, property_id)
-        if prop is None or prop.deleted_at is not None:
-            raise ExpenseError(f"Property {property_id} not found")
+        ExpenseService._validate_property(session, property_id)
 
         if category not in EXPENSE_CATEGORIES:
             raise ExpenseError(
@@ -46,21 +68,55 @@ class ExpenseService:
             raise ExpenseError("Amount must be positive")
 
         if lease_id is not None:
-            lea = session.get(Lease, lease_id)
-            if lea is None or lea.deleted_at is not None:
-                raise ExpenseError(f"Lease {lease_id} not found")
+            ExpenseService._validate_lease(session, lease_id)
+
+        vat_amount = ExpenseService._compute_vat_amount(amount, vat_rate)
 
         expense = Expense(
             property_id=property_id,
             lease_id=lease_id,
             category=category,
             amount=amount,
+            vat_rate=vat_rate if vat_rate is not None else Decimal("0"),
+            vat_amount=vat_amount,
             expense_date=expense_date,
             deductible=deductible,
             supplier=supplier,
             invoice_number=invoice_number,
             notes=notes,
         )
+        session.add(expense)
+        session.flush()
+        return expense
+
+    @staticmethod
+    def update(session: Session, expense_id: int, **changes) -> Expense:
+        expense = session.get(Expense, expense_id)
+        if expense is None or expense.deleted_at is not None:
+            raise ExpenseError(f"Expense {expense_id} not found")
+
+        if "property_id" in changes:
+            ExpenseService._validate_property(session, changes["property_id"])
+        if changes.get("lease_id") is not None:
+            ExpenseService._validate_lease(session, changes["lease_id"])
+
+        category = changes.get("category", expense.category)
+        if category not in EXPENSE_CATEGORIES:
+            raise ExpenseError(
+                f"Invalid category '{category}'. Valid: {', '.join(EXPENSE_CATEGORIES)}"
+            )
+
+        amount = changes.get("amount", expense.amount)
+        if amount <= Decimal("0"):
+            raise ExpenseError("Amount must be positive")
+
+        vat_rate = changes.get("vat_rate", expense.vat_rate)
+        if "amount" in changes or "vat_rate" in changes:
+            changes["vat_amount"] = ExpenseService._compute_vat_amount(amount, vat_rate)
+
+        for field, value in changes.items():
+            setattr(expense, field, value)
+        expense.updated_at = datetime.now(UTC)
         session.add(expense)
         session.flush()
         return expense

@@ -40,6 +40,7 @@ class ExpenseCreate(BaseModel):
     supplier: Optional[str] = None
     invoice_number: Optional[str] = None
     notes: Optional[str] = None
+    vat_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
 
 
 class IndexApplyRequest(BaseModel):
@@ -69,6 +70,7 @@ class ExpenseUpdate(BaseModel):
     supplier: Optional[str] = None
     invoice_number: Optional[str] = None
     notes: Optional[str] = None
+    vat_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
 
 
 class PaymentUpdate(BaseModel):

@@ -20,6 +20,14 @@ test.describe('Navegación y deep links', () => {
     await expect(page.getByRole('heading', { name: 'Conciliación bancaria' }).first()).toBeVisible()
   })
 
+  test('deep link to fiscal loads the page', async ({ page }) => {
+    await page.goto('/fiscal')
+    await expect(page.getByRole('heading', { name: 'Informes Fiscales' }).first()).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'IVA (303)' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Retenciones (190)' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Renta (100)' })).toBeVisible()
+  })
+
   test('unknown route redirects to dashboard', async ({ page }) => {
     await page.goto('/ruta-inexistente')
     await expect(page).toHaveURL('/')

@@ -29,13 +29,15 @@ rental-mgmt/
         ├── 20260531_1311_1c44557ef4b6_add_bank_movement_and_reconciliation_.py
         ├── 20260620_0256_8c8362e4c3d6_add_event_log_table.py
         ├── 20260912_1000_b7d1c9e2a4f0_add_indexes_and_integrity.py
-        └── 20260913_1200_a9e3f7c1d5b2_add_invoice_legal_fields.py
+        ├── 20260913_1200_a9e3f7c1d5b2_add_invoice_legal_fields.py
+        └── 20260913_1300_c1f8a2e6d4b9_add_expense_vat_fields.py
     ├── env.py
     └── script.py.mako
 ├── app/
     ├── api/
         ├── routers/
             ├── expenses.py
+            ├── fiscal.py
             ├── invoices.py
             ├── leases.py
             ├── owners.py
@@ -68,6 +70,7 @@ rental-mgmt/
         ├── backup_service.py
         ├── bank_adapter.py
         ├── expense_service.py
+        ├── fiscal_service.py
         ├── index_update_service.py
         ├── invoice_numbering_service.py
         ├── invoice_service.py
@@ -112,7 +115,12 @@ rental-mgmt/
         ├── rental_20260913_084716.db
         ├── rental_20260913_085029.db
         ├── rental_20260913_085438.db
-        └── rental_20260913_085540.db
+        ├── rental_20260913_085540.db
+        ├── rental_20260913_085804.db
+        ├── rental_20260913_090405.db
+        ├── rental_20260913_090421.db
+        ├── rental_20260913_090500.db
+        └── rental_20260913_091340.db
     ├── db/
         └── rental.db
     ├── invoices/
@@ -131,7 +139,9 @@ rental-mgmt/
     ├── test_backup_service.py
     ├── test_bank_adapter.py
     ├── test_coverage_gaps.py
+    ├── test_demo_seeder.py
     ├── test_expense_service.py
+    ├── test_fiscal_service.py
     ├── test_hardening.py
     ├── test_index_update_service.py
     ├── test_invoice_numbering_service.py
@@ -216,6 +226,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `lease_id` | Optional[int] | Sí | → `lease.id` |
 | `category` | str | No |  |
 | `amount` | Decimal | No |  |
+| `vat_rate` | Decimal | No |  |
+| `vat_amount` | Decimal | No |  |
 | `expense_date` | date | No |  |
 | `deductible` | bool | No |  |
 | `supplier` | Optional[str] | Sí |  |
@@ -456,10 +468,26 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ### ExpenseService
 
-- **register**(`session`, `property_id`, `category`, `amount`, `expense_date`, `lease_id`, `deductible`, `supplier`, `invoice_number`, `notes`) → `Expense`
+- **_validate_property**(`session`, `property_id`) → `None`
+- **_validate_lease**(`session`, `lease_id`) → `None`
+- **_compute_vat_amount**(`amount`, `vat_rate`) → `Decimal`
+  - Calcula la cuota de IVA incluida en un importe total.
+- **register**(`session`, `property_id`, `category`, `amount`, `expense_date`, `lease_id`, `deductible`, `supplier`, `invoice_number`, `notes`, `vat_rate`) → `Expense`
+- **update**(`session`, `expense_id`) → `Expense`
 - **list_expenses**(`session`, `property_id`, `year`) → `list[Expense]`
 - **list_by_property**(`session`, `property_id`, `year`) → `list[Expense]`
 - **summary**(`session`, `property_id`, `year`) → `dict`
+
+### FiscalService
+
+- **validate_year**(`year`) → `int`
+- **validate_quarter**(`quarter`) → `int`
+- **vat_report**(`session`, `year`, `quarter`) → `dict`
+  - Informe trimestral de IVA (modelo 303).
+- **withholdings_report**(`session`, `year`) → `dict`
+  - Resumen anual de retenciones de IRPF soportadas (modelo 190).
+- **income_report**(`session`, `year`) → `dict`
+  - Rendimiento anual del capital inmobiliario por propiedad (modelo 100).
 
 ### IndexUpdateService
 
@@ -507,7 +535,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 168 tests**
+**Total: 202 tests**
 
 ### Fixtures
 
@@ -660,6 +688,15 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 |---|---|
 | `test_summary_no_property` |  |
 
+### test_api.py — TestFiscal
+
+| Test | Descripción |
+|---|---|
+| `test_fiscal_needs_auth` |  |
+| `test_empty_reports` |  |
+| `test_invalid_quarter_returns_422` |  |
+| `test_reports_with_data` |  |
+
 ### test_api.py — TestHealth
 
 | Test | Descripción |
@@ -714,6 +751,18 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_skip_already_confirmed_payment` |  |
 | `test_concept_match_contributes_score` |  |
 
+### test_demo_seeder.py — Funciones de módulo
+
+| Test | Descripción |
+|---|---|
+| `test_demo_dataset_creates_full_dataset` |  |
+| `test_demo_dataset_uses_dates_relative_to_today` |  |
+| `test_demo_dataset_assigns_legal_correlative_numbers` |  |
+| `test_demo_dataset_includes_edge_cases` |  |
+| `test_demo_dataset_is_idempotent_without_clean` |  |
+| `test_demo_dataset_clean_replaces_previous_data` |  |
+| `test_demo_dataset_is_deterministic` |  |
+
 ### test_expense_service.py — TestRegister
 
 | Test | Descripción |
@@ -724,6 +773,16 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_invalid_category_raises` |  |
 | `test_zero_amount_raises` |  |
 | `test_lease_not_found_raises` |  |
+
+### test_expense_service.py — TestVatHandling
+
+| Test | Descripción |
+|---|---|
+| `test_register_computes_vat_from_total` |  |
+| `test_register_without_vat` |  |
+| `test_register_invalid_vat_rate_raises` |  |
+| `test_update_recomputes_vat` |  |
+| `test_update_validations` |  |
 
 ### test_expense_service.py — TestListByProperty
 
@@ -741,6 +800,34 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_summary_with_expenses` |  |
 | `test_summary_with_income` |  |
 | `test_summary_property_not_found_raises` |  |
+
+### test_fiscal_service.py — TestVatReport
+
+| Test | Descripción |
+|---|---|
+| `test_empty_report` |  |
+| `test_output_grouped_by_rate_and_exempt` |  |
+| `test_filters_by_quarter_status_and_soft_delete` |  |
+| `test_rectification_nets_negative` |  |
+| `test_input_vat_from_deductible_expenses` |  |
+| `test_invalid_year_and_quarter` |  |
+
+### test_fiscal_service.py — TestWithholdingsReport
+
+| Test | Descripción |
+|---|---|
+| `test_empty_report` |  |
+| `test_groups_by_recipient` |  |
+| `test_invalid_year` |  |
+
+### test_fiscal_service.py — TestIncomeReport
+
+| Test | Descripción |
+|---|---|
+| `test_empty_report` |  |
+| `test_income_and_expenses_by_property` |  |
+| `test_property_without_activity_is_omitted` |  |
+| `test_invalid_year` |  |
 
 ### test_hardening.py — TestPaymentLifecycle
 
@@ -885,6 +972,14 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_unknown_lease_raises` |  |
 | `test_default_date` |  |
 
+### test_migrations.py — Funciones de módulo
+
+| Test | Descripción |
+|---|---|
+| `test_upgrade_from_zero_creates_full_schema` |  |
+| `test_downgrade_and_upgrade_cycle` |  |
+| `test_backfill_numbers_and_snapshots_legacy_invoices` |  |
+
 ### test_payment_service.py — TestRegisterPayment
 
 | Test | Descripción |
@@ -934,6 +1029,13 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 |---|---|
 | `test_list_unmatched` |  |
 
+### test_sanity.py — Funciones de módulo
+
+| Test | Descripción |
+|---|---|
+| `test_sanity` | Sanity test to verify pytest is working. |
+| `test_imports` | Test that basic imports work. |
+
 ## 6. Migraciones (Alembic)
 
 - **`2e4d256a`** → create core models
@@ -953,6 +1055,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
   - Padre: `8c8362e4`
 - **`a9e3f7c1`** → add invoice legal fields (numbering, due date, snapshot, rectification)
   - Padre: `b7d1c9e2`
+- **`c1f8a2e6`** → add expense vat fields
+  - Padre: `a9e3f7c1`
 
 ```bash
 alembic upgrade head    # Aplicar pendientes
@@ -966,7 +1070,8 @@ alembic history        # Ver historial
 pytest -v                  # Ejecutar tests (cobertura mínima 80% en app/services)
 ruff check .               # Lint
 ruff check --fix .         # Auto-fix
-python scripts/seed.py     # Cargar datos de demo
+python scripts/seed.py          # Semilla básica
+python scripts/seed.py --full   # Dataset completo de exploración
 python -m desktop          # Arrancar la app de escritorio
 python scripts/generate_docs.py  # Regenerar este documento
 ```

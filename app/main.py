@@ -6,6 +6,7 @@ from starlette.responses import FileResponse
 
 from app.api.routers import (
     expenses,
+    fiscal,
     invoices,
     leases,
     owners,
@@ -46,6 +47,7 @@ app.include_router(properties.router, prefix=API_PREFIX)
 app.include_router(units.router, prefix=API_PREFIX)
 app.include_router(reconciliation.router, prefix=API_PREFIX)
 app.include_router(stats.router, prefix=API_PREFIX)
+app.include_router(fiscal.router, prefix=API_PREFIX)
 
 
 @app.get("/")

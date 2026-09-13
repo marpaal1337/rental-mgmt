@@ -47,6 +47,7 @@ def register_expense(
             body.supplier,
             body.invoice_number,
             body.notes,
+            body.vat_rate,
         )
         session.commit()
         session.refresh(expense)
@@ -61,16 +62,17 @@ def update_expense(
     body: ExpenseUpdate,
     session: Session = Depends(get_session),
 ):
-    expense = session.get(ExpenseModel, expense_id)
-    if expense is None or expense.deleted_at is not None:
-        raise HTTPException(status_code=404, detail="Expense not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(expense, field, value)
-    expense.updated_at = datetime.now(UTC)
-    session.add(expense)
-    session.commit()
-    session.refresh(expense)
-    return expense
+    try:
+        expense = ExpenseService.update(
+            session, expense_id, **body.model_dump(exclude_unset=True)
+        )
+        session.commit()
+        session.refresh(expense)
+        return expense
+    except ExpenseError as e:
+        detail = str(e)
+        status_code = 404 if "not found" in detail else 400
+        raise HTTPException(status_code=status_code, detail=detail)
 
 
 @router.delete("/{expense_id}")

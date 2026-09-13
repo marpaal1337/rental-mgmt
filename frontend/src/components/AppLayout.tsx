@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import {
-  AuditOutlined, BankOutlined, BookOutlined, DashboardOutlined,
+  AuditOutlined, BankOutlined, BookOutlined, CalculatorOutlined, DashboardOutlined,
   FileTextOutlined, HomeOutlined, MoneyCollectOutlined, TeamOutlined,
   ShopOutlined, AppstoreOutlined, UserOutlined, ReconciliationOutlined,
 } from '@ant-design/icons'
@@ -28,6 +28,7 @@ const menuItems = [
     ],
   },
   { key: '/reconciliation', icon: <ReconciliationOutlined />, label: 'Conciliación' },
+  { key: '/fiscal', icon: <CalculatorOutlined />, label: 'Fiscal' },
 ]
 
 const pageTitles: Record<string, string> = {
@@ -42,6 +43,7 @@ const pageTitles: Record<string, string> = {
   '/properties': 'Propiedades',
   '/units': 'Unidades',
   '/reconciliation': 'Conciliación',
+  '/fiscal': 'Informes Fiscales',
 }
 
 export default function AppLayout() {

@@ -19,4 +19,7 @@ export const queryKeys = {
     ['expenses', 'summary', propertyId, year] as const,
   unmatchedMovements: ['reconciliation', 'unmatched'] as const,
   allMovements: ['reconciliation', 'movements'] as const,
+  fiscalVat: (year: number, quarter: number) => ['fiscal', 'vat', year, quarter] as const,
+  fiscalWithholdings: (year: number) => ['fiscal', 'withholdings', year] as const,
+  fiscalIncome: (year: number) => ['fiscal', 'income', year] as const,
 }

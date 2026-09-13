@@ -7,6 +7,9 @@ import type {
   ExpenseCreatePayload,
   ExpenseSummary,
   ExpenseUpdatePayload,
+  FiscalIncomeReport,
+  FiscalVatReport,
+  FiscalWithholdingsReport,
   IndexUpdate,
   Invoice,
   InvoiceGeneratePayload,
@@ -176,6 +179,21 @@ export async function fetchExpenseCategories(): Promise<string[]> {
 
 export async function fetchExpenseSummary(propertyId: number, year: number): Promise<ExpenseSummary> {
   const { data } = await client.get('/expenses/summary', { params: { property_id: String(propertyId), year: String(year) } })
+  return data
+}
+
+export async function fetchVatReport(year: number, quarter: number): Promise<FiscalVatReport> {
+  const { data } = await client.get('/fiscal/vat', { params: { year, quarter } })
+  return data
+}
+
+export async function fetchWithholdingsReport(year: number): Promise<FiscalWithholdingsReport> {
+  const { data } = await client.get('/fiscal/withholdings', { params: { year } })
+  return data
+}
+
+export async function fetchIncomeReport(year: number): Promise<FiscalIncomeReport> {
+  const { data } = await client.get('/fiscal/income', { params: { year } })
   return data
 }
 

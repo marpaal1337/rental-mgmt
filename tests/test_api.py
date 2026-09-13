@@ -592,6 +592,112 @@ class TestExpenseSummary:
         assert resp.status_code == 404
 
 
+class TestFiscal:
+    def _setup_fiscal_data(
+        self, client: TestClient, refs: dict[str, int]
+    ) -> dict:
+        lease = client.post(
+            "/api/leases",
+            json={**refs, "start_date": "2024-01-01"},
+            headers=HEADERS,
+        ).json()
+        client.post(
+            f"/api/leases/{lease['id']}/rent-conditions",
+            json={"start_date": "2024-01-01", "monthly_rent": "1000.00"},
+            headers=HEADERS,
+        )
+        client.put(
+            f"/api/leases/{lease['id']}/tax-profile",
+            json={
+                "vat_rate": "0",
+                "irpf_rate": "19",
+                "vat_exempt": True,
+                "withholding_applies": True,
+            },
+            headers=HEADERS,
+        )
+        today = date.today()
+        client.post(
+            "/api/invoices/generate",
+            json={"period": f"{today.year}-{today.month:02d}"},
+            headers=HEADERS,
+        )
+        client.post(
+            "/api/expenses",
+            json={
+                "property_id": refs["property_id"],
+                "category": "supplies",
+                "amount": "121.00",
+                "expense_date": today.isoformat(),
+                "vat_rate": "21",
+            },
+            headers=HEADERS,
+        )
+        return lease
+
+    def test_fiscal_needs_auth(self, client: TestClient):
+        resp = client.get("/api/fiscal/vat", params={"year": 2024, "quarter": 1})
+        assert resp.status_code == 403
+
+    def test_empty_reports(self, client: TestClient):
+        vat = client.get(
+            "/api/fiscal/vat", params={"year": 2024, "quarter": 1}, headers=HEADERS
+        )
+        assert vat.status_code == 200
+        assert vat.json()["totals"]["vat_due"] == "0.00"
+
+        withholdings = client.get(
+            "/api/fiscal/withholdings", params={"year": 2024}, headers=HEADERS
+        )
+        assert withholdings.status_code == 200
+        assert withholdings.json()["rows"] == []
+
+        income = client.get(
+            "/api/fiscal/income", params={"year": 2024}, headers=HEADERS
+        )
+        assert income.status_code == 200
+        assert income.json()["rows"] == []
+
+    def test_invalid_quarter_returns_422(self, client: TestClient):
+        resp = client.get(
+            "/api/fiscal/vat", params={"year": 2024, "quarter": 9}, headers=HEADERS
+        )
+        assert resp.status_code == 422
+
+    def test_reports_with_data(self, client: TestClient, refs: dict[str, int]):
+        self._setup_fiscal_data(client, refs)
+        today = date.today()
+        quarter = (today.month - 1) // 3 + 1
+
+        vat = client.get(
+            "/api/fiscal/vat",
+            params={"year": today.year, "quarter": quarter},
+            headers=HEADERS,
+        ).json()
+        assert vat["exempt"]["base"] == "1000.00"
+        assert vat["totals"]["output_vat"] == "0.00"
+        assert vat["totals"]["input_vat"] == "21.00"
+        assert vat["totals"]["vat_due"] == "-21.00"
+
+        withholdings = client.get(
+            "/api/fiscal/withholdings",
+            params={"year": today.year},
+            headers=HEADERS,
+        ).json()
+        assert len(withholdings["rows"]) == 1
+        assert withholdings["rows"][0]["base"] == "1000.00"
+        assert withholdings["rows"][0]["withholding"] == "190.00"
+        assert withholdings["totals"]["withholding"] == "190.00"
+
+        income = client.get(
+            "/api/fiscal/income", params={"year": today.year}, headers=HEADERS
+        ).json()
+        assert len(income["rows"]) == 1
+        assert income["rows"][0]["gross_income"] == "1000.00"
+        assert income["rows"][0]["deductible_expenses"] == "121.00"
+        assert income["rows"][0]["net_income"] == "879.00"
+
+
 class TestHealth:
     def test_health(self, client: TestClient):
         resp = client.get("/health")

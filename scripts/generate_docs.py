@@ -143,13 +143,32 @@ def get_tests(path: Path) -> list[dict]:
         source = f.read_text(encoding="utf-8")
         tree = ast.parse(source)
 
+        module_methods = []
+        for node in tree.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if not node.name.startswith("test_"):
+                continue
+            module_methods.append({"name": node.name, "doc": ast.get_docstring(node)})
+        if module_methods:
+            tests.append(
+                {
+                    "file": f.name,
+                    "class": "Funciones de módulo",
+                    "methods": module_methods,
+                }
+            )
+
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 methods = []
                 for item in node.body:
-                    if isinstance(item, ast.FunctionDef) and item.name.startswith("test_"):
-                        doc = ast.get_docstring(item)
-                        methods.append({"name": item.name, "doc": doc})
+                    if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        continue
+                    if not item.name.startswith("test_"):
+                        continue
+                    doc = ast.get_docstring(item)
+                    methods.append({"name": item.name, "doc": doc})
                 if methods:
                     tests.append(
                         {
@@ -362,7 +381,8 @@ def generate() -> str:
     a("pytest -v                  # Ejecutar tests (cobertura mínima 80% en app/services)")
     a("ruff check .               # Lint")
     a("ruff check --fix .         # Auto-fix")
-    a("python scripts/seed.py     # Cargar datos de demo")
+    a("python scripts/seed.py          # Semilla básica")
+    a("python scripts/seed.py --full   # Dataset completo de exploración")
     a("python -m desktop          # Arrancar la app de escritorio")
     a("python scripts/generate_docs.py  # Regenerar este documento")
     a("```")

@@ -162,6 +162,11 @@ Gasto asociado a un Property (comunidad, reparaciones, suministros, IBI, etc.).
 
 **Categorías**: community, repairs, supplies, taxes, insurance, admin_fees, other.
 
+**IVA soportado (opcional)**: `vat_rate` y `vat_amount`. El usuario introduce el
+importe total del gasto y, si dispone de factura, el tipo de IVA; el servicio
+calcula la cuota incluida y la base (`amount − vat_amount`). Solo el IVA de los
+gastos marcados como deducibles computa en el informe del modelo 303.
+
 **API**: `GET/POST /expenses`, `GET /expenses/categories`, `GET /expenses/summary`
 
 ### 3.14 BankMovement (Movimiento bancario)
@@ -257,6 +262,25 @@ transaccional, con reintento ante colisión y sin reutilizar números de factura
 eliminadas. Las rectificativas usan la serie `R`. El número se persiste en la
 factura y el PDF lo muestra tal cual.
 
+### 4.10 FiscalService
+
+Genera informes orientados a las declaraciones trimestrales/anuales del
+propietario. Criterio común: las facturas computan por **fecha de expedición**
+(las rectificativas en el periodo en que se emiten) y los gastos por **fecha
+del gasto**.
+
+- **`vat_report(year, quarter)` — modelo 303**: IVA repercutido agrupado por
+  tipo (desde las líneas de factura), operaciones exentas/no sujetas, IVA
+  soportado deducible (desde gastos con IVA registrado), y resultado
+  (`IVA devengado − IVA soportado`). Excluye borradores y bajas lógicas.
+- **`withholdings_report(year)` — modelo 190**: resumen anual de retenciones de
+  IRPF agrupadas por inquilino (perceptor), con base y retención. Contrasta con
+  lo que cada inquilino ha ingresado a cuenta.
+- **`income_report(year)` — modelo 100**: rendimiento del capital inmobiliario
+  por propiedad: ingresos declarables (base sin IVA), gastos deducibles
+  (desglosados por categoría) y no deducibles, y rendimiento neto. Solo lista
+  propiedades con actividad en el ejercicio.
+
 ---
 
 ## 5. Frontend — Interfaz de usuario (React SPA)
@@ -272,6 +296,7 @@ factura y el PDF lo muestra tal cual.
 | Pagos | `/payments` | Lista de pagos registrados, formulario para nuevo pago |
 | Gastos | `/expenses` | Lista de gastos, selector de año + botón "Resumen" con tarjetas de rentabilidad |
 | Conciliación | `/reconciliation` | 3 tabs: Importar CSV (drag-and-drop), Sin procesar (propuesta + modal con score), Todos |
+| Fiscal | `/fiscal` | 3 tabs por modelo: IVA 303 (selector de trimestre), Retenciones 190 y Renta 100, con tarjetas de totales y detalle |
 | Propietarios | `/owners` | CRUD: tabla + modal de formulario |
 | Inquilinos | `/tenants` | CRUD: tabla + modal de formulario |
 | Propiedades | `/properties` | CRUD: tabla + modal de formulario |
@@ -361,6 +386,9 @@ header `X-API-Key`. La raíz `/` sirve la SPA y `/health` está fuera del prefij
 | GET | `/reconciliation/proposed` | Movimientos propuestos |
 | GET | `/reconciliation/movements` | Todos los movimientos |
 | GET | `/stats` | Estadísticas del dashboard |
+| GET | `/fiscal/vat` | Informe IVA trimestral (303): parámetros `year`, `quarter` |
+| GET | `/fiscal/withholdings` | Informe anual de retenciones IRPF (190): parámetro `year` |
+| GET | `/fiscal/income` | Rendimiento anual por propiedad (100): parámetro `year` |
 | GET | `/health` | Health check |
 
 ---
@@ -378,8 +406,9 @@ realizar las operaciones diarias más comunes.
 # 1. Aplicar migraciones
 alembic upgrade head
 
-# 2. (Opcional) Cargar datos de semilla para explorar
-python scripts/seed.py
+# 2. (Opcional) Cargar datos de prueba
+python scripts/seed.py          # semilla básica (2 propietarios, 2 locales)
+python scripts/seed.py --full   # dataset completo de exploración
 
 # 3. Arrancar backend (terminal 1)
 uvicorn app.main:app --reload
@@ -495,10 +524,12 @@ Cuando toque actualizar la renta según el IPC:
 1. Ir a **Gastos**
 2. Clic en **"Nuevo gasto"**
 3. Seleccionar propiedad, categoría, importe, fecha, proveedor
-4. Marcar **"Deducible"** si aplica (gastos de comunidad, reparaciones, etc.)
-5. Guardar
-6. Para ver el resumen anual: seleccionar año y clic en **"Resumen"**
-7. Aparecen tarjetas con:
+4. Si dispones de factura con IVA, indicar el **IVA %** (el importe introducido ya
+   lo incluye; el sistema calcula la cuota)
+5. Marcar **"Deducible"** si aplica (gastos de comunidad, reparaciones, etc.)
+6. Guardar
+7. Para ver el resumen anual: seleccionar año y clic en **"Resumen"**
+8. Aparecen tarjetas con:
    - **Ingresos totales** (suma de rentas del año)
    - **Gastos totales**
    - **Gastos deducibles**
@@ -575,6 +606,27 @@ La pantalla de inicio (`/`) muestra un resumen visual:
 
 ---
 
+### 7.9 Informes fiscales
+
+La pantalla **Fiscal** (`/fiscal`) reúne los tres informes de apoyo a las
+declaraciones, con selector de ejercicio:
+
+1. **IVA (303)**: elegir trimestre. Muestra tarjetas de IVA devengado, IVA
+   soportado deducible, resultado y operaciones exentas, más el desglose por
+   tipo (repercutido y soportado). Los gastos sin IVA registrado no computan
+   como soportado.
+2. **Retenciones (190)**: resumen anual por inquilino con base y retención
+   practicada. Sirve para contrastar con el modelo 190 de cada inquilino y
+   como apoyo al modelo 100.
+3. **Renta (100)**: rendimiento por propiedad (ingresos sin IVA, gastos
+   deducibles con desglose por categoría, gastos no deducibles y neto),
+   expandible fila a fila.
+
+> Son **informes orientativos**: el sistema no presenta declaraciones ante la
+> AEAT. Contrasta siempre los importes con tus asesores antes de presentar.
+
+---
+
 ## 8. Automatización
 
 | Tarea | Cuándo | Qué hace |
@@ -591,24 +643,49 @@ automatización.
 
 ## 9. Datos de semilla
 
-Ejecutar `python scripts/seed.py` (con `--clean` para reiniciar), o
-`RENTAL_MGMT_DEMO=1` al arrancar el escritorio en una base vacía, crea:
+### 9.1 Semilla básica
+
+`python scripts/seed.py` (con `--clean` para reiniciar) o `RENTAL_MGMT_DEMO=1`
+al arrancar el escritorio en una base vacía crea un juego mínimo de datos:
 
 | Entidad | Datos |
 |---|---|
-| Owner | Juan Pérez García (DNI), María López Ruiz (DNI) |
-| Property | Edificio Centro, Chalet Norte |
-| Unit | Piso 3º A (vivienda 85m²), Local Comercial (120m²), Garaje 7 (25m²) |
-| Tenant | Ana Martínez López, Comercial Pérez SL |
-| Lease | Vivienda habitual 850€/mes, Local 1500€/mes |
+| Owner | María García López (DNI), Carlos Martínez Ruiz (DNI) |
+| Property | Piso Centro (Madrid), Local Comercial (Valencia) |
+| Unit | Vivienda 3ºB (85m²), Garaje 42 (12m²), Local 5 (120m²) |
+| Tenant | Ana Fernández Pérez, Javier Gómez Sánchez |
+| Lease | Vivienda 950€/mes con IPC, Local 1800€/mes |
 | RentCondition | 3 condiciones históricas (incluye IPC) |
-| TaxProfile | IVA exento (vivienda), IVA 21% + IRPF 19% (local) |
+| TaxProfile | IVA 10% + IRPF 19% (vivienda), IVA 21% (local) |
 | Deposit | Fianzas depositadas en IVIMA |
 | IndexUpdate | 1 revisión IPC aplicada |
 | Invoice | 6 facturas generadas (3 por lease) |
 | Payment | 3 pagos registrados |
 | Expense | 8 gastos variados |
 | BankMovement | 3 movimientos sin conciliar |
+
+### 9.2 Dataset completo de exploración
+
+`python scripts/seed.py --full [--clean] [--years 3] [--seed N]` genera un
+dataset realista y **relativo a la fecha actual** (el mes en curso siempre
+tiene actividad), pensado para recorrer todas las pantallas:
+
+| Entidad | Datos |
+|---|---|
+| Owner | 5 propietarios en Madrid, Valencia, Sevilla, Bilbao y Málaga |
+| Property | 8 inmuebles (pisos y locales) |
+| Unit | 12 unidades (viviendas, locales, garajes y trasteros) |
+| Tenant | 11 inquilinos (particulares con DNI/NIE y sociedades con CIF) |
+| Lease | 13 contratos: activos, finalizado, rotación de inquilino, garajes; 1 sin perfil fiscal (se omite al facturar) |
+| RentCondition / IndexUpdate | Histórico de rentas con revisiones IPC e IRAV |
+| TaxProfile | IVA 10/21%, exención de IVA y retención de IRPF según contrato |
+| Deposit | Fianzas IVIMA, AGA, Generalitat, Etxebide… con una devuelta |
+| Invoice | Facturación mensual de todo el histórico, con numeración legal por serie/ejercicio, vencimiento y snapshot fiscal |
+| Rectificativa | 1 factura rectificada (serie `R`) con importes negativos |
+| Payment | Pagos totales y parciales; hay facturas impagadas antiguas para el job de impagos |
+| Expense | ~4 gastos/mes por inmueble, con una baja lógica de ejemplo |
+| BankMovement / Reconciliation | Movimientos bancarios confirmados, pendientes de conciliar y sin relación |
+| Reproducibilidad | `--seed` fija la aleatoriedad; `--years` controla el histórico |
 
 ---
 
@@ -649,7 +726,7 @@ desinstalar (`uninsneveruninstall`).
 - ✅ **Fase 10**: Calidad (backups automáticos, soft-delete audit en todos los servicios, frontend con todas las páginas CRUD)
 - ✅ **Fase 11**: Consolidación — integridad SQLite (WAL real, claves foráneas, índices, unicidad de facturas), corrección de bugs de dinero (sobrepagos, estado de facturas, conciliación multi-candidato), API bajo `/api`, catch-up de jobs, backup con `integrity_check`, empaquetado único PyInstaller + InnoSetup, frontend con TanStack Query y TypeScript estricto, 147 tests con cobertura mínima del 80 % en servicios
 - 🔄 **Fase 12** (en curso) — Fiscal/CRM:
-  - ✅ **12.1 Factura legal**: numeración correlativa por serie y ejercicio, fecha de vencimiento, snapshot fiscal emisor/receptor, rectificativas con serie `R`, IBAN de cobro en propietarios, dirección en inquilinos; 172 tests
-  - ⏳ **12.2 Informes fiscales** (303/190/100)
+  - ✅ **12.1 Factura legal**: numeración correlativa por serie y ejercicio, fecha de vencimiento, snapshot fiscal emisor/receptor, rectificativas con serie `R`, IBAN de cobro en propietarios, dirección en inquilinos
+  - ✅ **12.2 Informes fiscales**: 303 (IVA trimestral con desglose por tipo, exentas y soportado deducible), 190 (retenciones por inquilino) y 100 (rendimiento por propiedad); IVA opcional en gastos para el soportado; página frontend `Fiscal`
   - ⏳ **12.3 Avisos de impago y actividad** (job sobre vencimiento, API de eventos)
   - ⏳ **12.4 Plazos de fianza** (estado, justificante, alertas)

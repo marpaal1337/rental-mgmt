@@ -41,6 +41,7 @@ export default function ExpenseForm({ open, onClose, onSaved, expense }: Props) 
         form.setFieldsValue({
           ...expense,
           amount: parseFloat(expense.amount),
+          vat_rate: parseFloat(expense.vat_rate),
           expense_date: dayjs(expense.expense_date),
         })
       } else {
@@ -61,6 +62,7 @@ export default function ExpenseForm({ open, onClose, onSaved, expense }: Props) 
         deductible: values.deductible ?? true,
         supplier: values.supplier ?? null,
         notes: values.notes ?? null,
+        vat_rate: values.vat_rate != null ? String(values.vat_rate) : null,
       }
       if (isEdit) {
         await updateExpense(expense!.id, payload)
@@ -115,6 +117,13 @@ export default function ExpenseForm({ open, onClose, onSaved, expense }: Props) 
         </Form.Item>
         <Form.Item name="expense_date" label="Fecha" rules={[{ required: true }]}>
           <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name="vat_rate"
+          label="IVA %"
+          extra="Tipo de IVA incluido en el importe total (solo si dispones de factura)"
+        >
+          <InputNumber style={{ width: '100%' }} min={0} max={100} step={1} suffix="%" />
         </Form.Item>
         <Form.Item name="deductible" label="Deducible" valuePropName="checked">
           <Switch defaultChecked />

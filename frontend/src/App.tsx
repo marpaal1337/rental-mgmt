@@ -15,6 +15,7 @@ const Properties = lazy(() => import('./pages/Properties'))
 const Units = lazy(() => import('./pages/Units'))
 const Tenants = lazy(() => import('./pages/Tenants'))
 const Reconciliation = lazy(() => import('./pages/Reconciliation'))
+const Fiscal = lazy(() => import('./pages/Fiscal'))
 const Tutorial = lazy(() => import('./pages/Tutorial'))
 
 const fallback = <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="/units" element={page(<Units />)} />
             <Route path="/tenants" element={page(<Tenants />)} />
             <Route path="/reconciliation" element={page(<Reconciliation />)} />
+            <Route path="/fiscal" element={page(<Fiscal />)} />
             <Route path="/tutorial" element={page(<Tutorial />)} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

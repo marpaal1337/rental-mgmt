@@ -35,6 +35,14 @@ class Expense(AuditMixin, table=True):
         default=Decimal("0"),
         sa_column=Column(Numeric(12, 2), nullable=False),
     )
+    vat_rate: Decimal = Field(
+        default=Decimal("0"),
+        sa_column=Column(Numeric(4, 2), nullable=False),
+    )
+    vat_amount: Decimal = Field(
+        default=Decimal("0"),
+        sa_column=Column(Numeric(12, 2), nullable=False),
+    )
     expense_date: date = Field(nullable=False, index=True)
     deductible: bool = Field(default=True)
     supplier: Optional[str] = Field(default=None, max_length=255)

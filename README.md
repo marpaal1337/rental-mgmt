@@ -34,6 +34,8 @@ En una instalación nueva la base de datos arranca vacía. Para cargar datos de
 ejemplo (propietarios, inmuebles, contratos):
 
 ```bash
+python scripts/seed.py           # semilla básica
+python scripts/seed.py --full    # dataset completo relativo a hoy
 RENTAL_MGMT_DEMO=1 python -m desktop
 ```
 

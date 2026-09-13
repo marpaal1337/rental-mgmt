@@ -8,13 +8,13 @@ calidad del código, y **mantener actualizada la documentación**.
 
 ## Estado actual
 
-- **Fase completada**: Fase 12.1 — Factura legal (numeración por serie/ejercicio, vencimiento, snapshot fiscal, rectificativas)
-- **Próxima fase**: Fase 12.2 — Informes fiscales (303/190/100); después 12.3 impagos/actividad y 12.4 plazos de fianza
+- **Fase completada**: Fase 12.2 — Informes fiscales (303 IVA trimestral, 190 retenciones, 100 rendimiento por propiedad) + IVA opcional en gastos
+- **Próxima fase**: Fase 12.3 — Avisos de impago y actividad; después 12.4 plazos de fianza
 - **Plan director**: `rental-mgmt-plan.md`
 - **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL + FK), Alembic, reportlab, pytest, ruff
 - **Frontend**: Vite + React 19 + TypeScript (strict) + Ant Design + React Router + Axios + TanStack Query
-- **E2E**: Playwright (chromium), 9 tests
-- **Tests**: 172 tests, cobertura mínima 80 % en `app/services` (actual ~97 %)
+- **E2E**: Playwright (chromium), 10 tests
+- **Tests**: 202 tests, cobertura mínima 80 % en `app/services` (actual ~97 %)
 - **CI**: GitHub Actions (`.github/workflows/ci.yml`): ruff + pytest + lint/build frontend + E2E
 - **Empaquetado**: PyInstaller onedir + InnoSetup (vía única)
 
@@ -107,10 +107,17 @@ Generación: `python scripts/generate_icon.py` (Pillow). Se ejecuta automáticam
 
 ### app/seeder.py
 
-`seed_database(session, *, clean=False)` — función reusable que acepta un `Session` externo.
-- `scripts/seed.py` es un wrapper thin que llama a `seed_database` y gestiona `commit()`.
-- `desktop.py` la llama tras migraciones **solo** si `RENTAL_MGMT_DEMO=1` y `Owner` está vacío.
-  Una instalación real arranca vacía.
+`seed_database(session, *, clean=False)` — semilla básica reusable que acepta un `Session` externo.
+- `seed_demo_dataset(session, *, clean=False, years=3, seed=...)` — dataset completo de
+  exploración: determinista (semilla), fechas relativas a hoy, numeración legal de facturas,
+  impagos, rectificativa, baja lógica, movimientos bancarios confirmados/pendientes y perfil
+  fiscal ausente para probar el salto de facturación.
+- `scripts/seed.py` es un wrapper CLI (`--full`, `--clean`, `--years`, `--seed`) que llama a
+  la función correspondiente y gestiona `commit()`.
+- `desktop.py` llama a `seed_database` tras migraciones **solo** si `RENTAL_MGMT_DEMO=1` y
+  `Owner` está vacío. Una instalación real arranca vacía.
+- `_wipe_all` centraliza el borrado en orden seguro de claves foráneas (incluye
+  `Reconciliation` y `EventLog`, y elimina antes las rectificativas por su índice parcial).
 
 ### Persistencia de datos en desinstalación
 
@@ -125,7 +132,8 @@ Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 ### Bugs corregidos
 
 - **IndexUpdateService.commit**: el servicio usaba `session.flush()` en lugar de `session.commit()`. La corrección fue añadir `session.commit()` + `session.refresh()` en el router (`leases.py`), no en el servicio. Esto mantiene el convenio de que los servicios solo llaman a `flush()` y los routers gestionan `commit()`.
-- **EventLog table**: existe en el modelo pero no tiene migración Alembic. `seed.py --clean` falla al intentar borrarla. Se omitió manualmente en el seed.
+- **EventLog table**: tuvo una etapa sin migración Alembic que impedía borrarla en `seed.py --clean`. Ya existe la migración `8c8362e4c3d6` y `_wipe_all` la incluye.
+- **Wipe con rectificativas**: `_wipe_all` fallaba al poner `corrected_invoice_id=NULL` masivamente porque el índice parcial único de `(lease_id, period)` veía original y rectificativa como activas. Ahora se borran primero las rectificativas y después el resto.
 - **Reconciliation UNIQUE**: `bank_movement_id` era `unique=True` y `propose_matches` insertaba varios candidatos → `IntegrityError`. Se eliminó la restricción, se limitan las propuestas persistidas y al confirmar se descartan las hermanas.
 - **Estado de factura desincronizado**: editar o borrar un pago no recalculaba `paid`/`partial`. Ahora `PaymentService.update/delete` recalculan el estado (y se rechazan sobrepagos).
 - **PDFs en CWD**: `INVOICES_DIR` era relativo; ahora sale de `DATA_ROOT` (`app/config.py`).
@@ -136,6 +144,8 @@ Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 - **`GET /invoices/{id}` no devolvía `lines`**: SQLModel no serializa relaciones al usar `model_dump`; el router construye ahora un payload explícito (`_invoice_payload`) con las líneas.
 - **Pago sobre rectificativa**: un importe total ≤ 0 hacía que `_update_invoice_status` marcara la factura como `paid` con 0 pagos. Ahora se rechazan pagos sobre facturas sin importe positivo y el estado de rectificativas nunca auto-transiciona.
 - **Facturas legales sin numerar**: el número `INV-{año}-{id}` se calculaba al vuelo en el PDF, no se persistía y no era correlativo por serie. Ahora `InvoiceNumberingService` asigna y persiste `series/sequence/number/fiscal_year` (migración `a9e3f7c1d5b2` con backfill de las existentes).
+- **Gastos sin IVA**: no había forma de registrar el IVA soportado, así que el 303 no podía calcularlo. Ahora `Expense` tiene `vat_rate`/`vat_amount` opcionales (migración `c1f8a2e6d4b9`); `ExpenseService` calcula la cuota incluida en el importe total y `ExpenseService.update` la recalcula al cambiar importe o tipo.
+- **E2E con datos resucitados por WAL**: `playwright.config.ts` solo borraba `*.db`; los ficheros `-wal`/`-shm` de la ejecución anterior resucitaban filas al recrear la base. Ahora se borran los tres.
 
 ## Convenios del proyecto
 
@@ -150,6 +160,7 @@ Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 - **SQLite**: PRAGMAs `foreign_keys=ON`, `journal_mode=WAL` y `busy_timeout` en `app/database.create_db_engine`
 - **API bajo `/api`**: los routers se montan con `prefix="/api"`; el frontend usa `baseURL: '/api'`
 - **Facturas**: numerar **solo al emitir** (`InvoiceNumberingService`), nunca modificar el número; prohibido borrar facturas (usar rectificativa). El PDF usa el número y el snapshot persistidos, no datos vivos.
+- **Informes fiscales**: `FiscalService` computa facturas por **fecha de expedición** (las rectificativas en el trimestre de emisión) y gastos por **fecha del gasto**. El 303 solo cuenta el IVA de gastos deducibles; el 100 usa la base sin IVA como ingreso. Los informes son orientativos y devuelven importes como strings (`"123.45"`).
 - **Cobertura**: `pytest` exige ≥80 % en `app/services` vía `--cov-fail-under=80`
 - **Frontend**: TanStack Query para datos (sin `useFetch` ad-hoc), TypeScript `strict`, ESLint limpio
 
@@ -163,22 +174,22 @@ rental-mgmt/
 │   ├── api/           → Routers FastAPI
 │   │   └── routers/   → leases, invoices, payments, expenses,
 │   │                   owners, tenants, properties, units,
-│   │                   reconciliation, stats
+│   │                   reconciliation, stats, fiscal
 │   ├── jobs/          → APScheduler jobs
 │   └── seeder.py      → Reusable seed logic (llamado por desktop.py y scripts/seed.py)
 ├── frontend/
 │   ├── src/
 │   │   ├── api/       → Axios client, endpoints, queryKeys, queryClient
-│   │   ├── pages/     → Dashboard, Leases, Invoices, Payments, Expenses...
+│   │   ├── pages/     → Dashboard, Leases, Invoices, Payments, Expenses, Fiscal...
 │   │   ├── components/→ AppLayout, CrudPage, formularios, ErrorBoundary
 │   │   ├── types/     → TypeScript interfaces
 │   │   └── utils/     → format, labels compartidos
-│   └── e2e/           → Playwright E2E tests (9)
+│   └── e2e/           → Playwright E2E tests (10)
 ├── data/
 │   ├── db/            → SQLite database WAL (ignorada por git)
 │   ├── backups/       → Backups con integrity_check
 │   └── invoices/      → PDFs generados
-├── tests/             → Pytest tests (172, cov ≥80 % services)
+├── tests/             → Pytest tests (202, cov ≥80 % services)
 ├── alembic/           → Migraciones
 ├── scripts/           → Build instalador, docs, icono, seed
 ├── build/
@@ -213,7 +224,7 @@ rental-mgmt/
 12. ✅ **Fase 11** — Consolidación (integridad SQLite, bugs de dinero, API `/api`, packaging único, TanStack Query)
 13. 🔄 **Fase 12** — Fiscal/CRM:
     - ✅ **12.1** — Factura legal (numeración por serie/ejercicio, vencimiento, snapshot fiscal, rectificativas)
-    - ⏳ **12.2** — Informes fiscales (303/190/100)
+    - ✅ **12.2** — Informes fiscales (303/190/100) + IVA opcional en gastos (`vat_rate`/`vat_amount`)
     - ⏳ **12.3** — Avisos de impago y actividad
     - ⏳ **12.4** — Plazos de fianza
     - CRM descartado de la fase (sin caso de uso claro)

@@ -2,6 +2,7 @@ import {
   AppstoreOutlined,
   BookOutlined,
   BulbOutlined,
+  CalculatorOutlined,
   CheckCircleOutlined,
   CreditCardOutlined,
   DatabaseOutlined,
@@ -53,7 +54,7 @@ const sections: CollapseProps['items'] = [
             },
             {
               title: 'Cargar datos de prueba (opcional)',
-              description: 'python scripts/seed.py',
+              description: 'python scripts/seed.py --full',
               status: 'process',
               icon: <DatabaseOutlined />,
             },
@@ -250,6 +251,38 @@ const sections: CollapseProps['items'] = [
             },
           ]}
         />
+      </div>
+    ),
+  },
+  {
+    key: '8',
+    label: (
+      <span style={{ fontSize: 16, fontWeight: 600 }}>
+        <CalculatorOutlined style={{ marginRight: 10 }} />
+        Informes fiscales
+      </span>
+    ),
+    children: (
+      <div>
+        <Paragraph>
+          La pantalla <strong>Fiscal</strong> reúne los informes de apoyo a tus
+          declaraciones, con selector de ejercicio.
+        </Paragraph>
+        <TimelineStep num={1} title="IVA trimestral (modelo 303)" target="/fiscal" linkText="Ir a Fiscal">
+          Elige el trimestre: verás el IVA repercutido por tipo, las operaciones
+          exentas, el IVA soportado de los gastos deducibles y el resultado.
+        </TimelineStep>
+        <TimelineStep num={2} title="Retenciones anuales (modelo 190)">
+          Resumen por inquilino de las retenciones de IRPF que han ingresado a
+          cuenta de tu IRPF.
+        </TimelineStep>
+        <TimelineStep num={3} title="Renta anual (modelo 100)">
+          Rendimiento por propiedad: ingresos sin IVA menos gastos deducibles,
+          con desglose por categoría.
+        </TimelineStep>
+        <Tag icon={<BulbOutlined />} color="gold">
+          Son informes orientativos: contrasta siempre los importes antes de presentar.
+        </Tag>
       </div>
     ),
   },
