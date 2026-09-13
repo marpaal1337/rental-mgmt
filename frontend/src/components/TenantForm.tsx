@@ -30,13 +30,14 @@ export default function TenantForm({ open, onClose, onSaved, entity }: Props) {
     try {
       const values = await form.validateFields()
       setLoading(true)
-      const payload: TenantCreatePayload | TenantUpdatePayload = {
-        name: values.name,
-        document_type: values.document_type,
-        document_number: values.document_number,
-        email: values.email,
-        phone: values.phone,
-      }
+        const payload: TenantCreatePayload | TenantUpdatePayload = {
+          name: values.name,
+          document_type: values.document_type,
+          document_number: values.document_number,
+          email: values.email,
+          phone: values.phone,
+          address: values.address ?? null,
+        }
       if (isEdit) {
         await updateTenant(entity!.id, payload as TenantUpdatePayload)
       } else {
@@ -86,6 +87,9 @@ export default function TenantForm({ open, onClose, onSaved, entity }: Props) {
         </Form.Item>
         <Form.Item name="phone" label="Teléfono" rules={[{ required: true }]}>
           <Input type="tel" autoComplete="tel" inputMode="tel" />
+        </Form.Item>
+        <Form.Item name="address" label="Dirección">
+          <Input.TextArea rows={2} autoComplete="street-address" />
         </Form.Item>
       </Form>
     </Modal>

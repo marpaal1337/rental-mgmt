@@ -7,7 +7,8 @@ Permite gestionar contratos de alquiler, calcular rentas, aplicar revisiones IPC
 facturar con IVA/IRPF correcto, generar PDFs, registrar pagos, gastos,
 conciliar movimientos bancarios, y automatizar tareas mensuales.
 
-> **Estado actual**: Plan completo — todas las fases implementadas (0-10).
+> **Estado actual**: Fases 0–11 completadas. Fase 12 en curso — 12.1 (factura legal:
+> numeración, vencimiento, snapshot fiscal y rectificativas) completada.
 
 ---
 
@@ -33,7 +34,7 @@ conciliar movimientos bancarios, y automatizar tareas mensuales.
 Persona física o sociedad que posee inmuebles. Un Owner puede tener varios Properties
 y aparecer como arrendador en múltiples Leases.
 
-**Campos**: nombre, tipo de documento (DNI/NIE/CIF), número, email, teléfono, dirección.
+**Campos**: nombre, tipo de documento (DNI/NIE/CIF), número, email, teléfono, dirección, IBAN de cobro.
 
 **API**: `GET/POST /owners`, `GET/PUT /owners/{id}`
 
@@ -62,7 +63,7 @@ Relación: un Unit pertenece a un Property, y tiene varios Leases (históricos).
 
 Persona física o jurídica que alquila una unidad.
 
-**Campos**: nombre, tipo de documento, número, email, teléfono.
+**Campos**: nombre, tipo de documento, número, email, teléfono, dirección.
 
 **API**: `GET/POST /tenants`, `GET/PUT /tenants/{id}`
 
@@ -124,10 +125,23 @@ Factura mensual generada automáticamente para un contrato. Refleja el periodo,
 los importes calculados con IVA/IRPF según el perfil fiscal del contrato,
 y el estado (borrador/emitida/cobrada/cancelada).
 
-**Campos**: periodo (YYYY-MM), fecha de emisión, estado, base imponible total,
-cuota IVA total, retención IRPF total, importe total.
+**Campos**: periodo (YYYY-MM), fecha de emisión, fecha de vencimiento, estado,
+base imponible total, cuota IVA total, retención IRPF total, importe total.
 
-**API**: `GET/POST /invoices`, `GET /invoices/{id}`, `POST /invoices/generate`, `GET /invoices/{id}/pdf`
+**Numeración legal**: cada factura recibe al emitirse un **número correlativo
+persistido** por serie y ejercicio (`A-2026-0001`), sin huecos y sin reutilizar
+números de facturas anuladas. Las rectificativas usan serie propia (`R-...`).
+
+**Snapshot fiscal**: al generar la factura se congelan nombre, documento y
+dirección del arrendador y del arrendatario, de modo que cambios posteriores en
+las fichas no alteran facturas ya emitidas.
+
+**Rectificativas**: una factura emitida puede rectificarse (totalmente) creando
+una factura con importes negados enlazada a la original, con motivo obligatorio.
+La original se conserva (nunca se borra) y solo puede rectificarse una vez.
+
+**API**: `GET/POST /invoices`, `GET /invoices/{id}`, `POST /invoices/generate`,
+`POST /invoices/{id}/rectify`, `GET /invoices/{id}/pdf`
 
 ### 3.11 InvoiceLine (Línea de factura)
 
@@ -191,8 +205,17 @@ Genera facturas para todos los contratos activos en un periodo mensual dado
 (validado `YYYY-MM`). Es **idempotente**: si ya existe factura activa para ese
 lease y periodo, la salta (garantizado también por índice único en base de datos).
 
-Las facturas nacen en estado **issued** (emitida). Los contratos sin `TaxProfile`
-o sin condición de renta se omiten y se registran en el log, sin abortar el lote.
+Las facturas nacen en estado **issued** (emitida), con número legal asignado,
+fecha de vencimiento (emisión + 30 días por defecto) y snapshot fiscal de las
+partes. Los contratos sin `TaxProfile` o sin condición de renta se omiten y se
+registran en el log, sin abortar el lote.
+
+### 4.3b InvoiceService.rectify(invoice_id, reason)
+
+Crea una factura rectificativa con los importes negados, en serie `R`, vinculada
+a la factura original mediante `corrected_invoice_id` y con motivo obligatorio.
+Rechaza rectificar dos veces la misma factura y rectificar una rectificativa.
+La factura original nunca se modifica ni se elimina.
 
 ### 4.4 PDFService.render_invoice(invoice_id)
 
@@ -227,6 +250,13 @@ Copia automática de `rental.db` con la API de backup de SQLite (segura con WAL)
 verificación `integrity_check` y retención de 7 días. Se ejecuta vía APScheduler
 a las 5:00 y también antes de cada migración al arrancar el escritorio.
 
+### 4.9 InvoiceNumberingService
+
+Asigna números correlativos por serie y ejercicio (`A-2026-0001`) de forma
+transaccional, con reintento ante colisión y sin reutilizar números de facturas
+eliminadas. Las rectificativas usan la serie `R`. El número se persiste en la
+factura y el PDF lo muestra tal cual.
+
 ---
 
 ## 5. Frontend — Interfaz de usuario (React SPA)
@@ -238,7 +268,7 @@ a las 5:00 y también antes de cada migración al arrancar el escritorio.
 | Dashboard | `/` | Resumen: contratos activos, facturas del mes, pagos, gastos del año |
 | Contratos | `/leases` | Lista de contratos con filtros y acciones |
 | Contrato detalle | `/leases/:id` | Tabs: Renta (historial + crear), Fiscal (IVA/IRPF), Fianza, IPC (aplicar índice + historial) |
-| Facturas | `/invoices` | Lista de facturas, clic para ver detalle en modal con líneas |
+| Facturas | `/invoices` | Lista con nº legal, vencimiento y descarga PDF; detalle con líneas y acción **Rectificar** |
 | Pagos | `/payments` | Lista de pagos registrados, formulario para nuevo pago |
 | Gastos | `/expenses` | Lista de gastos, selector de año + botón "Resumen" con tarjetas de rentabilidad |
 | Conciliación | `/reconciliation` | 3 tabs: Importar CSV (drag-and-drop), Sin procesar (propuesta + modal con score), Todos |
@@ -291,7 +321,8 @@ header `X-API-Key`. La raíz `/` sirve la SPA y `/health` está fuera del prefij
 | DELETE | `/leases/{id}` | Baja lógica del contrato |
 | GET | `/invoices` | Listar facturas |
 | GET | `/invoices/{id}` | Obtener factura |
-| POST | `/invoices/generate` | Generar facturas mensuales |
+| POST | `/invoices/generate` | Generar facturas mensuales (con numeración legal) |
+| POST | `/invoices/{id}/rectify` | Crear factura rectificativa |
 | GET | `/invoices/{id}/pdf` | Descargar PDF |
 | GET | `/payments` | Listar pagos |
 | POST | `/payments` | Registrar pago |
@@ -414,9 +445,21 @@ Una vez creado el contrato, clic en su fila para ver el detalle:
 1. Ir a **Facturas**
 2. Clic en **"Generar facturas del mes"**
 3. Introducir período (ej. `2026-06`) y clic en **Generar**
-4. Aparecerán las facturas creadas. Clic en una fila para ver su detalle (líneas
-   con desglose de IVA/IRPF)
+4. Aparecerán las facturas creadas, cada una con su **número legal** (ej.
+   `A-2026-0001`) y su **fecha de vencimiento**. Clic en una fila para ver su
+   detalle (líneas con desglose de IVA/IRPF)
 5. Clic en el icono PDF para descargar la factura en PDF
+
+**Paso 6b — Rectificar una factura**
+
+Si una factura ya emitida contiene un error:
+
+1. Ir a **Facturas** y clic en la factura a rectificar
+2. En el detalle, clic en **"Rectificar"**
+3. Escribir el **motivo** (obligatorio) y confirmar
+4. El sistema crea una **factura rectificativa** en serie `R` con los importes
+   negados, enlazada a la original. La original se conserva y no puede
+   rectificarse dos veces
 
 **Paso 7 — Registrar pago**
 
@@ -605,3 +648,8 @@ desinstalar (`uninsneveruninstall`).
 - ✅ **Fase 9**: Automatización (APScheduler, facturación mensual, backups, impagos)
 - ✅ **Fase 10**: Calidad (backups automáticos, soft-delete audit en todos los servicios, frontend con todas las páginas CRUD)
 - ✅ **Fase 11**: Consolidación — integridad SQLite (WAL real, claves foráneas, índices, unicidad de facturas), corrección de bugs de dinero (sobrepagos, estado de facturas, conciliación multi-candidato), API bajo `/api`, catch-up de jobs, backup con `integrity_check`, empaquetado único PyInstaller + InnoSetup, frontend con TanStack Query y TypeScript estricto, 147 tests con cobertura mínima del 80 % en servicios
+- 🔄 **Fase 12** (en curso) — Fiscal/CRM:
+  - ✅ **12.1 Factura legal**: numeración correlativa por serie y ejercicio, fecha de vencimiento, snapshot fiscal emisor/receptor, rectificativas con serie `R`, IBAN de cobro en propietarios, dirección en inquilinos; 172 tests
+  - ⏳ **12.2 Informes fiscales** (303/190/100)
+  - ⏳ **12.3 Avisos de impago y actividad** (job sobre vencimiento, API de eventos)
+  - ⏳ **12.4 Plazos de fianza** (estado, justificante, alertas)

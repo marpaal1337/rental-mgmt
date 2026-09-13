@@ -52,6 +52,9 @@ class PaymentService:
         if invoice.status == "cancelled":
             raise PaymentError(f"Invoice {invoice_id} is cancelled")
 
+        if invoice.total <= Decimal("0"):
+            raise PaymentError(f"Invoice {invoice_id} has no payable amount")
+
         paid_before = PaymentService._paid_total(session, invoice_id)
         if paid_before + amount > invoice.total:
             outstanding = invoice.total - paid_before
@@ -125,6 +128,13 @@ class PaymentService:
     @staticmethod
     def _update_invoice_status(session: Session, invoice: Invoice) -> None:
         if invoice.status == "cancelled":
+            return
+
+        if invoice.total <= Decimal("0"):
+            if invoice.status in ("partial", "paid"):
+                invoice.status = "issued"
+                invoice.updated_at = datetime.now(UTC)
+                session.add(invoice)
             return
 
         paid = PaymentService._paid_total(session, invoice.id)

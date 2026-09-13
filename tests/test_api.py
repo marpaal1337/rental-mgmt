@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 
 from app.config import API_KEY
@@ -120,6 +122,31 @@ class TestLeases:
 
 
 class TestInvoices:
+    def _create_lease_with_fiscal_data(
+        self, client: TestClient, refs: dict[str, int], *, exempt: bool = True
+    ) -> dict:
+        lease = client.post(
+            "/api/leases",
+            json={**refs, "start_date": "2024-01-01"},
+            headers=HEADERS,
+        ).json()
+        client.post(
+            f"/api/leases/{lease['id']}/rent-conditions",
+            json={"start_date": "2024-01-01", "monthly_rent": "1000.00"},
+            headers=HEADERS,
+        )
+        client.put(
+            f"/api/leases/{lease['id']}/tax-profile",
+            json={
+                "vat_rate": "0" if exempt else "21.00",
+                "irpf_rate": "0",
+                "vat_exempt": exempt,
+                "withholding_applies": False,
+            },
+            headers=HEADERS,
+        )
+        return lease
+
     def test_generate_without_data_returns_empty(self, client: TestClient):
         resp = client.post(
             "/api/invoices/generate",
@@ -128,6 +155,84 @@ class TestInvoices:
         )
         assert resp.status_code == 201
         assert resp.json() == []
+
+    def test_generate_assigns_legal_number_and_due_date(
+        self, client: TestClient, refs: dict[str, int]
+    ):
+        self._create_lease_with_fiscal_data(client, refs)
+        resp = client.post(
+            "/api/invoices/generate",
+            json={"period": "2024-06"},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 201
+        invoice = resp.json()[0]
+        year = date.today().year
+        assert invoice["number"] == f"A-{year}-0001"
+        assert invoice["series"] == "A"
+        assert invoice["fiscal_year"] == year
+        assert invoice["due_date"] is not None
+        assert invoice["sequence"] == 1
+
+    def test_rectify_creates_negative_invoice(
+        self, client: TestClient, refs: dict[str, int]
+    ):
+        self._create_lease_with_fiscal_data(client, refs)
+        invoice = client.post(
+            "/api/invoices/generate",
+            json={"period": "2024-06"},
+            headers=HEADERS,
+        ).json()[0]
+
+        resp = client.post(
+            f"/api/invoices/{invoice['id']}/rectify",
+            json={"reason": "Importe incorrecto"},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 201
+        rectification = resp.json()
+        year = date.today().year
+        assert rectification["number"] == f"R-{year}-0001"
+        assert rectification["corrected_invoice_id"] == invoice["id"]
+        assert float(rectification["total"]) == -float(invoice["total"])
+        assert rectification["lines"][0]["base_amount"].startswith("-")
+
+        second = client.post(
+            f"/api/invoices/{invoice['id']}/rectify",
+            json={"reason": "Otra vez"},
+            headers=HEADERS,
+        )
+        assert second.status_code == 400
+
+        regenerated = client.post(
+            "/api/invoices/generate",
+            json={"period": "2024-06"},
+            headers=HEADERS,
+        ).json()
+        assert regenerated == []
+
+    def test_rectify_not_found(self, client: TestClient):
+        resp = client.post(
+            "/api/invoices/999/rectify",
+            json={"reason": "Motivo"},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 404
+
+    def test_rectify_requires_reason(self, client: TestClient, refs: dict[str, int]):
+        self._create_lease_with_fiscal_data(client, refs)
+        invoice = client.post(
+            "/api/invoices/generate",
+            json={"period": "2024-06"},
+            headers=HEADERS,
+        ).json()[0]
+
+        resp = client.post(
+            f"/api/invoices/{invoice['id']}/rectify",
+            json={"reason": ""},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 422
 
 
 class TestExpenses:

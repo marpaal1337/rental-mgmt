@@ -18,6 +18,7 @@ class Owner(AuditMixin, table=True):
     email: str = Field(max_length=255, nullable=False)
     phone: str = Field(max_length=50, nullable=False)
     address: Optional[str] = Field(default=None, max_length=500)
+    iban: Optional[str] = Field(default=None, max_length=34)
 
     properties: List["Property"] = Relationship(back_populates="owner")
     leases: List["Lease"] = Relationship(back_populates="owner")

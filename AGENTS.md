@@ -8,13 +8,14 @@ calidad del código, y **mantener actualizada la documentación**.
 
 ## Estado actual
 
-- **Fase completada**: Fase 11 — Consolidación (integridad SQLite, bugs de dinero, API `/api`, packaging único, TanStack Query)
-- **Próxima fase**: Fase 12 — Fiscal/CRM (numeración legal de facturas, informes IVA/IRPF 303/190 y modelo 100, avisos de impago, plazos de fianza)
+- **Fase completada**: Fase 12.1 — Factura legal (numeración por serie/ejercicio, vencimiento, snapshot fiscal, rectificativas)
+- **Próxima fase**: Fase 12.2 — Informes fiscales (303/190/100); después 12.3 impagos/actividad y 12.4 plazos de fianza
 - **Plan director**: `rental-mgmt-plan.md`
 - **Stack**: Python 3.11+, FastAPI, SQLModel, SQLite (WAL + FK), Alembic, reportlab, pytest, ruff
 - **Frontend**: Vite + React 19 + TypeScript (strict) + Ant Design + React Router + Axios + TanStack Query
 - **E2E**: Playwright (chromium), 9 tests
-- **Tests**: 147 tests, cobertura mínima 80 % en `app/services` (actual ~97 %)
+- **Tests**: 172 tests, cobertura mínima 80 % en `app/services` (actual ~97 %)
+- **CI**: GitHub Actions (`.github/workflows/ci.yml`): ruff + pytest + lint/build frontend + E2E
 - **Empaquetado**: PyInstaller onedir + InnoSetup (vía única)
 
 ## Documentación del proyecto
@@ -131,6 +132,10 @@ Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 - **Facturas sin `TaxProfile`**: abortaban todo el lote; ahora se omiten y se registran en el log; la unicidad `(lease_id, period)` está garantizada por índice parcial.
 - **Colisión SPA/API**: la API vivía en rutas raíz y rompía los deep links; ahora todo cuelga de `/api`.
 - **Backup inconsistente con WAL**: se usa la API de backup de SQLite + `integrity_check`.
+- **`POST /invoices/generate` devolvía `{}`**: tras `commit()` las instancias ORM quedaban expiradas y la serialización no las recargaba. Ahora el router hace `refresh()` de cada factura antes de responder.
+- **`GET /invoices/{id}` no devolvía `lines`**: SQLModel no serializa relaciones al usar `model_dump`; el router construye ahora un payload explícito (`_invoice_payload`) con las líneas.
+- **Pago sobre rectificativa**: un importe total ≤ 0 hacía que `_update_invoice_status` marcara la factura como `paid` con 0 pagos. Ahora se rechazan pagos sobre facturas sin importe positivo y el estado de rectificativas nunca auto-transiciona.
+- **Facturas legales sin numerar**: el número `INV-{año}-{id}` se calculaba al vuelo en el PDF, no se persistía y no era correlativo por serie. Ahora `InvoiceNumberingService` asigna y persiste `series/sequence/number/fiscal_year` (migración `a9e3f7c1d5b2` con backfill de las existentes).
 
 ## Convenios del proyecto
 
@@ -144,6 +149,7 @@ Name: "{app}\data\invoices"; Flags: uninsneveruninstall
 - **Alembic migrations**: añadir `import sqlmodel` manualmente al generarlas (limitación de SQLModel)
 - **SQLite**: PRAGMAs `foreign_keys=ON`, `journal_mode=WAL` y `busy_timeout` en `app/database.create_db_engine`
 - **API bajo `/api`**: los routers se montan con `prefix="/api"`; el frontend usa `baseURL: '/api'`
+- **Facturas**: numerar **solo al emitir** (`InvoiceNumberingService`), nunca modificar el número; prohibido borrar facturas (usar rectificativa). El PDF usa el número y el snapshot persistidos, no datos vivos.
 - **Cobertura**: `pytest` exige ≥80 % en `app/services` vía `--cov-fail-under=80`
 - **Frontend**: TanStack Query para datos (sin `useFetch` ad-hoc), TypeScript `strict`, ESLint limpio
 
@@ -172,7 +178,7 @@ rental-mgmt/
 │   ├── db/            → SQLite database WAL (ignorada por git)
 │   ├── backups/       → Backups con integrity_check
 │   └── invoices/      → PDFs generados
-├── tests/             → Pytest tests (147, cov ≥80 % services)
+├── tests/             → Pytest tests (172, cov ≥80 % services)
 ├── alembic/           → Migraciones
 ├── scripts/           → Build instalador, docs, icono, seed
 ├── build/
@@ -205,4 +211,9 @@ rental-mgmt/
 10. ✅ **Fase 9** — Automatización (APScheduler)
 11. ✅ **Fase 10** — Calidad (backups, cobertura, soft-delete audit)
 12. ✅ **Fase 11** — Consolidación (integridad SQLite, bugs de dinero, API `/api`, packaging único, TanStack Query)
-13. ⏳ **Fase 12** — Fiscal/CRM (numeración legal de facturas, informes 303/190 y modelo 100, avisos de impago, plazos de fianza)
+13. 🔄 **Fase 12** — Fiscal/CRM:
+    - ✅ **12.1** — Factura legal (numeración por serie/ejercicio, vencimiento, snapshot fiscal, rectificativas)
+    - ⏳ **12.2** — Informes fiscales (303/190/100)
+    - ⏳ **12.3** — Avisos de impago y actividad
+    - ⏳ **12.4** — Plazos de fianza
+    - CRM descartado de la fase (sin caso de uso claro)

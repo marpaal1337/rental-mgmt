@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlmodel import Field, Relationship
 
@@ -16,5 +16,6 @@ class Tenant(AuditMixin, table=True):
     document_number: str = Field(max_length=50, nullable=False)
     email: str = Field(max_length=255, nullable=False)
     phone: str = Field(max_length=50, nullable=False)
+    address: Optional[str] = Field(default=None, max_length=500)
 
     leases: List["Lease"] = Relationship(back_populates="tenant")

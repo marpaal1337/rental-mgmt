@@ -39,6 +39,12 @@ class PDFService:
         owner = lease.owner
         tenant = lease.tenant
 
+        corrected = (
+            session.get(Invoice, invoice.corrected_invoice_id)
+            if invoice.corrected_invoice_id
+            else None
+        )
+
         year, month = invoice.period.split("-")
         out_dir = INVOICES_DIR / year / month
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -58,22 +64,19 @@ class PDFService:
         normal = styles["Normal"]
         heading = styles["Heading1"]
 
+        inv_num = invoice.number or f"INV-{year}-{invoice.id:04d}"
+        period_display = f"{month}/{year}"
+        due_display = str(invoice.due_date) if invoice.due_date else "—"
+
         heading.alignment = 1
         elements.append(Paragraph("FACTURA", heading))
-        elements.append(
-            Paragraph(
-                f"Nº INV-{year}-{invoice.id:04d}",
-                styles["Normal"],
-            )
-        )
+        elements.append(Paragraph(f"Nº {inv_num}", styles["Normal"]))
         elements.append(Spacer(1, 10 * mm))
-
-        inv_num = f"INV-{year}-{invoice.id:04d}"
-        period_display = f"{month}/{year}"
 
         data_metadata: List[List[str]] = [
             ["Nº Factura:", inv_num, "Fecha:", str(invoice.issue_date)],
-            ["Periodo:", period_display, "Estado:", invoice.status],
+            ["Periodo:", period_display, "Vencimiento:", due_display],
+            ["Estado:", invoice.status, "", ""],
         ]
         meta_table = Table(data_metadata, colWidths=[35 * mm, 50 * mm, 30 * mm, 50 * mm])
         meta_table.setStyle(
@@ -87,23 +90,40 @@ class PDFService:
         elements.append(meta_table)
         elements.append(Spacer(1, 8 * mm))
 
+        if corrected is not None:
+            reference = corrected.number or f"INV-{corrected.period[:4]}-{corrected.id:04d}"
+            reason = escape(invoice.rectification_reason or "")
+            elements.append(
+                Paragraph(
+                    f"<b>Factura rectificativa</b> de {escape(reference)}<br/>{reason}",
+                    normal,
+                )
+            )
+            elements.append(Spacer(1, 5 * mm))
+
         owner_lines = [
-            f"<b>Arrendador:</b> {escape(owner.name)}",
-            f"{escape(owner.document_type)}: {escape(owner.document_number)}",
+            f"<b>Arrendador:</b> {escape(invoice.issuer_name or owner.name)}",
+            f"{escape(invoice.issuer_document_type or owner.document_type)}: "
+            f"{escape(invoice.issuer_document_number or owner.document_number)}",
             escape(owner.email or ""),
             escape(owner.phone or ""),
         ]
-        if owner.address:
-            owner_lines.append(escape(owner.address))
+        issuer_address = invoice.issuer_address or owner.address
+        if issuer_address:
+            owner_lines.append(escape(issuer_address))
         elements.append(Paragraph("<br/>".join(owner_lines), normal))
         elements.append(Spacer(1, 5 * mm))
 
         tenant_lines = [
-            f"<b>Arrendatario:</b> {escape(tenant.name)}",
-            f"{escape(tenant.document_type)}: {escape(tenant.document_number)}",
+            f"<b>Arrendatario:</b> {escape(invoice.recipient_name or tenant.name)}",
+            f"{escape(invoice.recipient_document_type or tenant.document_type)}: "
+            f"{escape(invoice.recipient_document_number or tenant.document_number)}",
             escape(tenant.email or ""),
             escape(tenant.phone or ""),
         ]
+        recipient_address = invoice.recipient_address or tenant.address
+        if recipient_address:
+            tenant_lines.append(escape(recipient_address))
         elements.append(Paragraph("<br/>".join(tenant_lines), normal))
         elements.append(Spacer(1, 8 * mm))
 

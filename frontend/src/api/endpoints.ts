@@ -10,6 +10,7 @@ import type {
   IndexUpdate,
   Invoice,
   InvoiceGeneratePayload,
+  InvoiceRectifyPayload,
   Lease,
   LeaseCreatePayload,
   LeaseUpdatePayload,
@@ -116,6 +117,11 @@ export async function fetchInvoice(id: number): Promise<Invoice> {
 
 export async function generateInvoices(payload: InvoiceGeneratePayload): Promise<Invoice[]> {
   const { data } = await client.post('/invoices/generate', payload)
+  return data
+}
+
+export async function rectifyInvoice(id: number, payload: InvoiceRectifyPayload): Promise<Invoice> {
+  const { data } = await client.post(`/invoices/${id}/rectify`, payload)
   return data
 }
 

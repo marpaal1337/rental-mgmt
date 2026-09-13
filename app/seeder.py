@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from sqlmodel import Session, select
 
+from app.config import INVOICE_PAYMENT_TERMS_DAYS
 from app.models.bank import BankMovement
 from app.models.expense import Expense
 from app.models.invoice import Invoice, InvoiceLine
@@ -14,6 +15,7 @@ from app.models.payment import Payment
 from app.models.property import Property
 from app.models.tenant import Tenant
 from app.models.unit import Unit
+from app.services.invoice_numbering_service import InvoiceNumberingService
 
 
 def seed_database(session: Session, *, clean: bool = False) -> bool:
@@ -240,14 +242,23 @@ def seed_database(session: Session, *, clean: bool = False) -> bool:
             period=inv_data["period"],
             lease_id=leases_for_invoices[i].id,
             issue_date=inv_data["issue"],
+            due_date=inv_data["issue"] + timedelta(days=INVOICE_PAYMENT_TERMS_DAYS),
             status=inv_data["status"],
             total_base=base,
             total_vat=vat,
             total_irpf_withholding=irpf,
             total=total,
         )
-        session.add(inv)
-        session.flush()
+        lease = leases_for_invoices[i]
+        inv.issuer_name = lease.owner.name
+        inv.issuer_document_type = lease.owner.document_type
+        inv.issuer_document_number = lease.owner.document_number
+        inv.issuer_address = lease.owner.address
+        inv.recipient_name = lease.tenant.name
+        inv.recipient_document_type = lease.tenant.document_type
+        inv.recipient_document_number = lease.tenant.document_number
+        inv.recipient_address = lease.tenant.address
+        InvoiceNumberingService.assign_number(session, inv)
 
         line = InvoiceLine(
             invoice_id=inv.id,

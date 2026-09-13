@@ -6,6 +6,7 @@ from sqlmodel import Session
 
 from app.models.invoice import Invoice, InvoiceLine
 from app.models.lease import RentCondition, TaxProfile
+from app.services.invoice_service import InvoiceService
 from app.services.pdf_service import PDFService
 
 
@@ -114,3 +115,35 @@ class TestRenderInvoice:
 
         with raises(PDFGenerationError):
             PDFService.render_invoice(session, 999)
+
+    def test_pdf_for_rectification(self, session: Session, sample_lease, tmp_path: Path):
+        rc = RentCondition(
+            lease_id=sample_lease.id,
+            start_date=date(2024, 1, 1),
+            monthly_rent=Decimal("850.00"),
+        )
+        session.add(rc)
+        tax = TaxProfile(
+            lease_id=sample_lease.id,
+            vat_rate=Decimal("0"),
+            irpf_rate=Decimal("0"),
+            vat_exempt=True,
+            withholding_applies=False,
+        )
+        session.add(tax)
+        session.commit()
+
+        tenant = sample_lease.tenant
+        tenant.address = "Calle Receptor 1"
+        session.add(tenant)
+        session.commit()
+
+        [original] = InvoiceService.generate_monthly(session, "2024-06")
+        session.commit()
+        rectification = InvoiceService.rectify(session, original.id, "Importe incorrecto")
+        session.commit()
+
+        path = PDFService.render_invoice(session, rectification.id)
+
+        assert path.exists()
+        assert path.stat().st_size > 1000

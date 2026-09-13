@@ -53,3 +53,4 @@ if not INVOICES_DIR.is_absolute():
 
 API_KEY: str = os.getenv("API_KEY", "dev-key-123")
 ENABLE_SCHEDULER: bool = os.getenv("ENABLE_SCHEDULER", "1") != "0"
+INVOICE_PAYMENT_TERMS_DAYS: int = int(os.getenv("INVOICE_PAYMENT_TERMS_DAYS", "30"))

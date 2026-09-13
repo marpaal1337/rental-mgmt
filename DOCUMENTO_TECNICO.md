@@ -28,7 +28,8 @@ rental-mgmt/
         ├── 20260531_1309_e1cd76ded677_add_expense_table.py
         ├── 20260531_1311_1c44557ef4b6_add_bank_movement_and_reconciliation_.py
         ├── 20260620_0256_8c8362e4c3d6_add_event_log_table.py
-        └── 20260912_1000_b7d1c9e2a4f0_add_indexes_and_integrity.py
+        ├── 20260912_1000_b7d1c9e2a4f0_add_indexes_and_integrity.py
+        └── 20260913_1200_a9e3f7c1d5b2_add_invoice_legal_fields.py
     ├── env.py
     └── script.py.mako
 ├── app/
@@ -68,6 +69,7 @@ rental-mgmt/
         ├── bank_adapter.py
         ├── expense_service.py
         ├── index_update_service.py
+        ├── invoice_numbering_service.py
         ├── invoice_service.py
         ├── lease_service.py
         ├── payment_service.py
@@ -95,38 +97,6 @@ rental-mgmt/
     └── innosetup.iss
 ├── data/
     ├── backups/
-        ├── rental_20260531_115909.db
-        ├── rental_20260531_120051.db
-        ├── rental_20260531_120056.db
-        ├── rental_20260531_120345.db
-        ├── rental_20260531_120353.db
-        ├── rental_20260531_120447.db
-        ├── rental_20260531_121611.db
-        ├── rental_20260531_122111.db
-        ├── rental_20260531_123442.db
-        ├── rental_20260531_123449.db
-        ├── rental_20260531_123730.db
-        ├── rental_20260531_123833.db
-        ├── rental_20260531_171223.db
-        ├── rental_20260531_171238.db
-        ├── rental_20260531_202545.db
-        ├── rental_20260531_202622.db
-        ├── rental_20260531_205231.db
-        ├── rental_20260531_215432.db
-        ├── rental_20260531_220628.db
-        ├── rental_20260531_224948.db
-        ├── rental_20260531_225039.db
-        ├── rental_20260531_225051.db
-        ├── rental_20260531_230950.db
-        ├── rental_20260531_231102.db
-        ├── rental_20260531_232724.db
-        ├── rental_20260601_180221.db
-        ├── rental_20260601_181843.db
-        ├── rental_20260602_192458.db
-        ├── rental_20260602_214055.db
-        ├── rental_20260620_005041.db
-        ├── rental_20260620_010609.db
-        ├── rental_20260912_130032.db
         ├── rental_20260912_130331.db
         ├── rental_20260912_130412.db
         ├── rental_20260912_130451.db
@@ -135,7 +105,14 @@ rental-mgmt/
         ├── rental_20260912_130620.db
         ├── rental_20260912_130641.db
         ├── rental_20260912_131302.db
-        └── rental_20260912_131738.db
+        ├── rental_20260912_131738.db
+        ├── rental_20260912_133527.db
+        ├── rental_20260912_133612.db
+        ├── rental_20260913_030000.db
+        ├── rental_20260913_084716.db
+        ├── rental_20260913_085029.db
+        ├── rental_20260913_085438.db
+        └── rental_20260913_085540.db
     ├── db/
         └── rental.db
     ├── invoices/
@@ -157,6 +134,7 @@ rental-mgmt/
     ├── test_expense_service.py
     ├── test_hardening.py
     ├── test_index_update_service.py
+    ├── test_invoice_numbering_service.py
     ├── test_invoice_service.py
     ├── test_jobs.py
     ├── test_lease_service.py
@@ -255,7 +233,22 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `period` | str | No |  |
 | `lease_id` | int | No | → `lease.id` |
 | `issue_date` | date | No |  |
+| `due_date` | Optional[date] | Sí |  |
 | `status` | str | No |  |
+| `series` | str | No |  |
+| `sequence` | Optional[int] | Sí |  |
+| `number` | Optional[str] | Sí |  |
+| `fiscal_year` | Optional[int] | Sí |  |
+| `corrected_invoice_id` | Optional[int] | Sí | → `invoice.id` |
+| `rectification_reason` | Optional[str] | Sí |  |
+| `issuer_name` | Optional[str] | Sí |  |
+| `issuer_document_type` | Optional[str] | Sí |  |
+| `issuer_document_number` | Optional[str] | Sí |  |
+| `issuer_address` | Optional[str] | Sí |  |
+| `recipient_name` | Optional[str] | Sí |  |
+| `recipient_document_type` | Optional[str] | Sí |  |
+| `recipient_document_number` | Optional[str] | Sí |  |
+| `recipient_address` | Optional[str] | Sí |  |
 | `total_base` | Decimal | No |  |
 | `total_vat` | Decimal | No |  |
 | `total_irpf_withholding` | Decimal | No |  |
@@ -368,6 +361,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `email` | str | No |  |
 | `phone` | str | No |  |
 | `address` | Optional[str] | Sí |  |
+| `iban` | Optional[str] | Sí |  |
 
 **Relaciones:**
 - `properties` → 1:N → `owner`
@@ -413,6 +407,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `document_number` | str | No |  |
 | `email` | str | No |  |
 | `phone` | str | No |  |
+| `address` | Optional[str] | Sí |  |
 
 **Relaciones:**
 - `leases` → 1:N → `tenant`
@@ -470,10 +465,19 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 - **apply_index**(`session`, `lease_id`, `index_rate`, `application_date`, `index_name`, `notes`) → `tuple[RentCondition, IndexUpdate]`
 
+### InvoiceNumberingService
+
+- **format_number**(`series`, `fiscal_year`, `sequence`) → `str`
+- **assign_number**(`cls`, `session`, `invoice`) → `str`
+- **_next_sequence**(`session`, `series`, `fiscal_year`) → `int`
+
 ### InvoiceService
 
 - **validate_period**(`period`) → `date`
 - **generate_monthly**(`session`, `period`) → `List[Invoice]`
+- **rectify**(`session`, `invoice_id`, `reason`) → `Invoice`
+  - Crea una factura rectificativa con importes negados y serie propia.
+- **_freeze_party_data**(`invoice`, `lease`) → `None`
 
 ### LeaseService
 
@@ -503,7 +507,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 
 ## 5. Tests
 
-**Total: 143 tests**
+**Total: 168 tests**
 
 ### Fixtures
 
@@ -555,6 +559,10 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | Test | Descripción |
 |---|---|
 | `test_generate_without_data_returns_empty` |  |
+| `test_generate_assigns_legal_number_and_due_date` |  |
+| `test_rectify_creates_negative_invoice` |  |
+| `test_rectify_not_found` |  |
+| `test_rectify_requires_reason` |  |
 
 ### test_api.py — TestExpenses
 
@@ -804,6 +812,41 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_apply_index_multiple_times` |  |
 | `test_apply_index_zero_rate` |  |
 
+### test_invoice_numbering_service.py — TestNumberingService
+
+| Test | Descripción |
+|---|---|
+| `test_format_number` |  |
+| `test_sequential_within_series_and_year` |  |
+| `test_sequence_restarts_each_year` |  |
+| `test_series_are_independent` |  |
+| `test_deleted_invoice_does_not_release_number` |  |
+| `test_existing_number_is_returned_unchanged` |  |
+| `test_exhausted_attempts_raise` |  |
+
+### test_invoice_numbering_service.py — TestGenerateMonthlyLegalData
+
+| Test | Descripción |
+|---|---|
+| `test_assigns_number_due_date_and_fiscal_year` |  |
+| `test_numbers_are_sequential_across_leases` |  |
+| `test_snapshot_is_frozen_at_generation` |  |
+
+### test_invoice_numbering_service.py — TestRectify
+
+| Test | Descripción |
+|---|---|
+| `test_creates_negative_invoice_in_rectification_series` |  |
+| `test_double_rectification_rejected` |  |
+| `test_cannot_rectify_a_rectification` |  |
+| `test_reason_is_required` |  |
+| `test_not_found` |  |
+| `test_generation_is_not_repeated_after_rectification` |  |
+| `test_payment_on_rectification_is_rejected` |  |
+| `test_rectification_status_stays_issued` |  |
+| `test_rectification_status_resets_if_marked_paid` |  |
+| `test_numbers_continue_after_rectification` |  |
+
 ### test_invoice_service.py — TestGenerateMonthly
 
 | Test | Descripción |
@@ -860,6 +903,7 @@ Todas las entidades heredan de `AuditMixin` que aporta:
 | `test_pdf_generated_for_vivienda` |  |
 | `test_pdf_generated_for_local` |  |
 | `test_invoice_not_found_raises` |  |
+| `test_pdf_for_rectification` |  |
 
 ### test_reconciliation_service.py — TestImportCSV
 
@@ -907,6 +951,8 @@ Todas las entidades heredan de `AuditMixin` que aporta:
   - Padre: `1c44557e`
 - **`b7d1c9e2`** → add indexes and invoice uniqueness
   - Padre: `8c8362e4`
+- **`a9e3f7c1`** → add invoice legal fields (numbering, due date, snapshot, rectification)
+  - Padre: `b7d1c9e2`
 
 ```bash
 alembic upgrade head    # Aplicar pendientes

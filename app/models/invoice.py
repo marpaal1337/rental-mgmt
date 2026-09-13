@@ -20,14 +20,37 @@ class Invoice(AuditMixin, table=True):
             "lease_id",
             "period",
             unique=True,
-            sqlite_where=text("deleted_at IS NULL"),
+            sqlite_where=text("deleted_at IS NULL AND corrected_invoice_id IS NULL"),
+        ),
+        Index(
+            "uq_invoice_number_active",
+            "number",
+            unique=True,
+            sqlite_where=text("deleted_at IS NULL AND number IS NOT NULL"),
         ),
     )
 
     period: str = Field(max_length=7, nullable=False, index=True)
     lease_id: int = Field(foreign_key="lease.id", nullable=False, index=True)
     issue_date: date = Field(nullable=False)
+    due_date: Optional[date] = Field(default=None)
     status: str = Field(max_length=20, default="draft", index=True)
+    series: str = Field(max_length=10, default="A", nullable=False)
+    sequence: Optional[int] = Field(default=None)
+    number: Optional[str] = Field(default=None, max_length=40)
+    fiscal_year: Optional[int] = Field(default=None, index=True)
+    corrected_invoice_id: Optional[int] = Field(
+        default=None, foreign_key="invoice.id", index=True
+    )
+    rectification_reason: Optional[str] = Field(default=None, max_length=500)
+    issuer_name: Optional[str] = Field(default=None, max_length=255)
+    issuer_document_type: Optional[str] = Field(default=None, max_length=10)
+    issuer_document_number: Optional[str] = Field(default=None, max_length=50)
+    issuer_address: Optional[str] = Field(default=None, max_length=500)
+    recipient_name: Optional[str] = Field(default=None, max_length=255)
+    recipient_document_type: Optional[str] = Field(default=None, max_length=10)
+    recipient_document_number: Optional[str] = Field(default=None, max_length=50)
+    recipient_address: Optional[str] = Field(default=None, max_length=500)
     total_base: Decimal = Field(
         default=Decimal("0"),
         sa_column=Column(Numeric(12, 2), nullable=False),

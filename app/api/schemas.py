@@ -18,6 +18,10 @@ class InvoiceGenerateRequest(BaseModel):
     period: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$", examples=["2024-06"])
 
 
+class InvoiceRectifyRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
 class PaymentCreate(BaseModel):
     invoice_id: int
     amount: Decimal = Field(gt=0)
@@ -81,6 +85,7 @@ class OwnerCreate(BaseModel):
     email: str
     phone: str
     address: Optional[str] = None
+    iban: Optional[str] = None
 
 
 class OwnerUpdate(BaseModel):
@@ -90,6 +95,7 @@ class OwnerUpdate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    iban: Optional[str] = None
 
 
 class PropertyCreate(BaseModel):
@@ -134,6 +140,7 @@ class TenantCreate(BaseModel):
     document_number: str
     email: str
     phone: str
+    address: Optional[str] = None
 
 
 class TenantUpdate(BaseModel):
@@ -142,6 +149,7 @@ class TenantUpdate(BaseModel):
     document_number: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    address: Optional[str] = None
 
 
 class RentConditionCreate(BaseModel):

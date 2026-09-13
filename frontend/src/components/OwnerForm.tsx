@@ -37,6 +37,7 @@ export default function OwnerForm({ open, onClose, onSaved, entity }: Props) {
         email: values.email,
         phone: values.phone,
         address: values.address ?? null,
+        iban: values.iban ?? null,
       }
       if (isEdit) {
         await updateOwner(entity!.id, payload as OwnerUpdatePayload)
@@ -90,6 +91,9 @@ export default function OwnerForm({ open, onClose, onSaved, entity }: Props) {
         </Form.Item>
         <Form.Item name="address" label="Dirección">
           <Input.TextArea rows={2} autoComplete="street-address" />
+        </Form.Item>
+        <Form.Item name="iban" label="IBAN de cobro">
+          <Input placeholder="ES00 0000 0000 0000 0000 0000" />
         </Form.Item>
       </Form>
     </Modal>

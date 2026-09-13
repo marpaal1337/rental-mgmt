@@ -6,6 +6,7 @@ export interface Owner {
   email: string
   phone: string
   address: string | null
+  iban: string | null
 }
 
 export interface Property {
@@ -35,6 +36,7 @@ export interface Tenant {
   document_number: string
   email: string
   phone: string
+  address: string | null
 }
 
 export interface Lease {
@@ -70,7 +72,14 @@ export interface Invoice {
   period: string
   lease_id: number
   issue_date: string
+  due_date: string | null
   status: string
+  series: string
+  sequence: number | null
+  number: string | null
+  fiscal_year: number | null
+  corrected_invoice_id: number | null
+  rectification_reason: string | null
   total_base: string
   total_vat: string
   total_irpf_withholding: string
@@ -172,6 +181,10 @@ export interface InvoiceGeneratePayload {
   period: string
 }
 
+export interface InvoiceRectifyPayload {
+  reason: string
+}
+
 export interface OwnerCreatePayload {
   name: string
   document_type: string
@@ -179,6 +192,7 @@ export interface OwnerCreatePayload {
   email: string
   phone: string
   address?: string | null
+  iban?: string | null
 }
 
 export interface OwnerUpdatePayload {
@@ -188,6 +202,7 @@ export interface OwnerUpdatePayload {
   email?: string
   phone?: string
   address?: string | null
+  iban?: string | null
 }
 
 export interface PropertyCreatePayload {
@@ -232,6 +247,7 @@ export interface TenantCreatePayload {
   document_number: string
   email: string
   phone: string
+  address?: string | null
 }
 
 export interface TenantUpdatePayload {
@@ -240,6 +256,7 @@ export interface TenantUpdatePayload {
   document_number?: string
   email?: string
   phone?: string
+  address?: string | null
 }
 
 export interface RentCondition {
